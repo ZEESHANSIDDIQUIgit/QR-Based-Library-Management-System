@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Registration - SSUET Library</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23b08d44'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; }
+        .strength-bar { transition: width 0.4s ease, background-color 0.4s ease; }
+    </style>
+</head>
+<body class="bg-[#F8F7F4] text-gray-900 min-h-screen flex items-center justify-center p-4 md:p-8 relative overflow-y-auto">
+ 
+    <div class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(#b08d44_1px,transparent_1px)] [background-size:24px_24px] opacity-[0.03] pointer-events-none"></div>
+ 
+    <div class="w-full max-w-5xl bg-white rounded-2xl shadow-[0_25px_60_rgba(0,0,0,0.12)] border-2 border-gray-200/80 overflow-hidden grid grid-cols-1 lg:grid-cols-2 min-h-fit z-10 my-auto">
+ 
+        <!-- Left Panel -->
+        <div class="bg-gradient-to-br from-[#1c1a16] via-[#2b251a] to-[#12100d] p-10 md:p-12 lg:p-16 text-white flex flex-col justify-between relative min-h-[400px] lg:min-h-[650px] border-b-4 lg:border-b-0 lg:border-r-4 border-[#b08d44]">
+            <div class="absolute inset-0 bg-black/10 pointer-events-none"></div>
+            
+            <!-- Logo Section: Fixed to fill the box -->
+            <div class="relative z-10 flex items-center space-x-5">
+                <div class="w-14 h-14 bg-white rounded-xl shadow-2xl overflow-hidden flex items-center justify-center border border-white/10">
+                    <img src="ssuetlogo.png" alt="SSUET Logo" class="w-full h-full object-cover">
+                </div>
+                <div>
+                    <h3 class="text-sm font-black tracking-widest uppercase text-[#b08d44]">Sir Syed University</h3>
+                    <p class="text-[10px] text-gray-400 uppercase tracking-[0.2em] font-bold">Library Resource Center</p>
+                </div>
+            </div>
+
+            <!-- Central Content -->
+            <div class="relative z-10 my-auto space-y-6">
+                <span class="inline-block text-[10px] font-extrabold tracking-widest uppercase text-[#b08d44] bg-[#b08d44]/15 px-4 py-1.5 rounded-full border border-[#b08d44]/30 backdrop-blur-sm">System Access Provisioning</span>
+                <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight leading-[1.1] text-white">Join the institutional research platform.</h1>
+                <p class="text-sm text-gray-400 leading-relaxed max-w-sm font-medium">Register your academic metadata to obtain permissions, explore index archives, and initiate seamless item reservation checkouts.</p>
+            </div>
+
+            <div class="relative z-10 text-[10px] text-gray-500 font-bold tracking-widest uppercase">© 2026 SSUET INFRASTRUCTURE v2.1</div>
+        </div>
+ 
+        <!-- Right Panel -->
+        <div class="p-8 sm:p-12 lg:p-16 flex flex-col justify-center bg-white">
+            <div class="max-w-md w-full mx-auto space-y-6">
+                <div class="relative pb-1">
+                    <h2 class="text-xl md:text-2xl font-black tracking-tight text-gray-900 uppercase leading-none">CREATE ACCOUNT <span class="text-[#b08d44]">AND SIGN UP</span></h2>
+                    <div class="h-1.5 w-20 bg-[#b08d44] rounded-full mt-4"></div>
+                </div>
+ 
+                <form onsubmit="event.preventDefault(); handleRegistration();" autocomplete="off" class="space-y-4">
+ 
+                    <!-- NAME (Alphabets Only) -->
+                    <div class="space-y-1">
+                        <label class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider">Full Legal Name</label>
+                        <input type="text" id="regName" required 
+                            pattern="^[A-Za-z\s]+$"
+                            oninput="this.value = this.value.replace(/[^A-Za-z\s]/g, '')"
+                            placeholder="Enter complete name"
+                            class="w-full bg-gray-50/50 border-2 border-gray-200 focus:border-[#b08d44] focus:bg-white px-4 py-2.5 text-sm rounded-xl outline-none shadow-sm transition-all duration-300">
+                    </div>
+ 
+                    <!-- STUDENT ID (Strict Format) -->
+                    <div class="space-y-1">
+                        <label class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider">Student ID Enrollment Key</label>
+                        <input type="text" id="regId" required 
+                            placeholder="e.g., 2024F-BCS-005"
+                            pattern="\d{4}[FSfs]-[A-Za-z]{2,5}-\d{3,}"
+                            oninput="this.value = this.value.toUpperCase()"
+                            title="Required Format: Year(F/S)-DEPT-RollNo (e.g. 2024F-BCS-005)"
+                            class="w-full bg-gray-50/50 border-2 border-gray-200 focus:border-[#b08d44] focus:bg-white px-4 py-2.5 text-sm rounded-xl outline-none shadow-sm transition-all duration-300">
+                    </div>
+ 
+                    <!-- EMAIL (@ssuet.edu.pk only) -->
+                    <div class="space-y-1">
+                        <label class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider">University Mail Endpoint Address</label>
+                        <input type="email" id="regEmail" required 
+                            pattern=".+@ssuet\.edu\.pk"
+                            placeholder="username@ssuet.edu.pk"
+                            class="w-full bg-gray-50/50 border-2 border-gray-200 focus:border-[#b08d44] focus:bg-white px-4 py-2.5 text-sm rounded-xl outline-none shadow-sm transition-all duration-300">
+                    </div>
+ 
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider">Department</label>
+                            <select id="regDepartment" required
+                                class="w-full bg-gray-50/50 border-2 border-gray-200 focus:border-[#b08d44] focus:bg-white px-4 py-2.5 text-xs rounded-xl outline-none shadow-sm transition-all duration-300 cursor-pointer">
+                                <option value="" disabled selected>Select</option>
+                                <option value="COMPUTER SCIENCE">Computer Science</option>
+                                <option value="SOFTWARE ENGINEERING">Software Engineering</option>
+                                <option value="ELECTRICAL ENGINEERING">Electrical Engineering</option>
+                                <option value="CIVIL ENGINEERING">Civil Engineering</option>
+                                <option value="MECHANICAL ENGINEERING">Mechanical Engineering</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider">Semester</label>
+                            <select id="regSemester" required
+                                class="w-full bg-gray-50/50 border-2 border-gray-200 focus:border-[#b08d44] focus:bg-white px-4 py-2.5 text-xs rounded-xl outline-none shadow-sm transition-all duration-300 cursor-pointer">
+                                <option value="" disabled selected>Select</option>
+                                <option value="1">1</option><option value="2">2</option>
+                                <option value="3">3</option><option value="4">4</option>
+                                <option value="5">5</option><option value="6">6</option>
+                                <option value="7">7</option><option value="8">8</option>
+                            </select>
+                        </div>
+                    </div>
+ 
+                    <!-- PASSWORD (Strength + Eye) -->
+                    <div class="space-y-1">
+                        <label class="block text-[11px] font-extrabold text-gray-700 uppercase tracking-wider">Generate Password</label>
+                        <div class="relative">
+                            <input type="password" id="regPass" required placeholder="••••••••"
+                                oninput="checkStrength(this.value)"
+                                class="w-full bg-gray-50/50 border-2 border-gray-200 focus:border-[#b08d44] focus:bg-white px-4 py-2.5 pr-10 text-sm rounded-xl outline-none shadow-sm transition-all duration-300">
+                            <button type="button" onclick="togglePassword()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#b08d44]">
+                                <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.644C3.399 8.049 7.21 5 12 5c4.791 0 8.601 3.049 9.964 6.678.045.122.045.272 0 .394-1.363 3.678-5.173 6.678-9.964 6.678-4.791 0-8.601-3.049-9.964-6.678z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="mt-2 h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+                            <div id="strengthBar" class="strength-bar h-full w-0 bg-red-500"></div>
+                        </div>
+                        <p id="strengthText" class="text-[9px] font-bold uppercase text-gray-400 mt-1">Strength: None</p>
+                    </div>
+ 
+                    <button type="submit"
+                        class="w-full py-4 bg-[#b08d44] text-white font-extrabold text-xs uppercase tracking-widest rounded-xl hover:bg-[#9c7b39] transition-all duration-300 mt-2 shadow-lg shadow-[#b08d44]/20">
+                        Execute Profile Provision
+                    </button>
+                </form>
+ 
+                <p class="text-center text-[11px] text-gray-400 font-semibold">
+                    Already registered? 
+                    <a href="studentlogin.html" class="text-[#b08d44] font-extrabold hover:underline">Sign In</a>
+                </p>
+            </div>
+        </div>
+    </div>
+ 
+    <script>
+        function togglePassword() {
+            const passInput = document.getElementById('regPass');
+            const eyeIcon = document.getElementById('eyeIcon');
+            if (passInput.type === "password") {
+                passInput.type = "text";
+                eyeIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.822 7.822L21 21m-2.278-2.278L15.07 15.07m-4.47-4.47L9 9m4.5 3.5a3.5 3.5 0 11-4.5-4.5" />`;
+            } else {
+                passInput.type = "password";
+                eyeIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.644C3.399 8.049 7.21 5 12 5c4.791 0 8.601 3.049 9.964 6.678.045.122.045.272 0 .394-1.363 3.678-5.173 6.678-9.964 6.678-4.791 0-8.601-3.049-9.964-6.678z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />`;
+            }
+        }
+
+        function checkStrength(p) {
+            let bar = document.getElementById('strengthBar');
+            let txt = document.getElementById('strengthText');
+            let s = 0;
+            if(p.length > 5) s++;
+            if(/[A-Z]/.test(p)) s++;
+            if(/[0-9]/.test(p)) s++;
+            if(/[^A-Za-z0-9]/.test(p)) s++;
+
+            if(p.length === 0) { bar.style.width="0%"; txt.innerText="Strength: None"; txt.style.color="#9ca3af"; }
+            else if(s < 2) { bar.style.width="33%"; bar.style.backgroundColor="#ef4444"; txt.innerText="Strength: Weak"; txt.style.color="#ef4444"; }
+            else if(s < 4) { bar.style.width="66%"; bar.style.backgroundColor="#f59e0b"; txt.innerText="Strength: Mid"; txt.style.color="#f59e0b"; }
+            else { bar.style.width="100%"; bar.style.backgroundColor="#10b981"; txt.innerText="Strength: Strong"; txt.style.color="#10b981"; }
+        }
+
+        async function handleRegistration() {
+            const name       = document.getElementById('regName').value.trim();
+            const studentId  = document.getElementById('regId').value.trim();
+            const email      = document.getElementById('regEmail').value.trim();
+            const department = document.getElementById('regDepartment').value;
+            const semester   = document.getElementById('regSemester').value;
+            const password   = document.getElementById('regPass').value;
+ 
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, student_id: studentId, email, password, department, semester })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert("Account successfully provisioned.");
+                    window.location.href = 'studentlogin.html';
+                } else {
+                    alert("Registration Rejected: " + data.message);
+                }
+            } catch (error) {
+                alert("Server Connection Error.");
+            }
+        }
+    </script>
+</body>
+</html>

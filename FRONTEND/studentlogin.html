@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Login Portal - SSUET Library</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .split-container {
+            display: flex;
+            width: 90%;
+            max-width: 1100px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        .left-panel {
+            background: #1a1510;
+            color: #ffffff;
+            padding: 40px;
+            width: 45%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            border-right: 4px solid #b3924e;
+        }
+        .brand-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .brand-logo {
+            width: 45px;
+            height: 45px;
+            object-fit: contain;
+        }
+        .brand-title h3 {
+            margin: 0;
+            color: #b3924e;
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+        .brand-title p {
+            margin: 0;
+            color: #888;
+            font-size: 11px;
+        }
+        .hero-text h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+        .hero-text p {
+            color: #aaa;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .panel-footer {
+            font-size: 11px;
+            color: #555;
+        }
+        .right-panel {
+            padding: 50px;
+            width: 55%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .form-header h2 {
+            font-size: 26px;
+            color: #111;
+            margin-bottom: 5px;
+        }
+        .form-header h2 span {
+            color: #b3924e;
+        }
+        .form-header p {
+            color: #777;
+            font-size: 13px;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+        .input-container {
+            position: relative;
+        }
+        .input-container input {
+            width: 100%;
+            padding: 14px 16px;
+            padding-right: 45px;
+            font-size: 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background-color: #edf2f7;
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.3s;
+        }
+        .input-container input:focus {
+            border-color: #b3924e;
+            background-color: #fff;
+            box-shadow: 0 0 0 3px rgba(179, 146, 78, 0.15);
+        }
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #b3924e;
+            font-size: 16px;
+            user-select: none;
+        }
+        .submit-btn {
+            background-color: #b3924e;
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 15px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 12px rgba(179, 146, 78, 0.2);
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        .submit-btn:hover {
+            background-color: #96793f;
+            transform: translateY(-1px);
+        }
+        .back-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 30px;
+            color: #888;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+        .back-link:hover {
+            color: #b3924e;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="split-container">
+        <div class="left-panel">
+            <div class="brand-header">
+                <img src="ssuetlogo.png" alt="SSUET Logo" class="brand-logo">
+                <div class="brand-title">
+                    <h3>SIR SYED UNIVERSITY</h3>
+                    <p>LIBRARY RESOURCE CENTER</p>
+                </div>
+            </div>
+            
+            <div class="hero-text">
+                <span style="color: #b3924e; font-size: 11px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; background: rgba(179,146,78,0.1); padding: 4px 8px; border-radius: 4px;">Student Gateway</span>
+                <h1 style="margin-top: 15px;">Access your digital academic sanctuary.</h1>
+                <p>Manage resource requests, track real-time book availability updates, and review outstanding balances securely from your customized student workspace.</p>
+            </div>
+            
+            <div class="panel-footer">
+                © 2026 SSUET INFRASTRUCTURE V2.1
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="form-header">
+                <h2>LOGIN TO YOUR <span>STUDENT PORTAL</span></h2>
+                <p>Please provide your authorized credentials below to access security scopes.</p>
+            </div>
+
+            <form id="studentLoginForm">
+                <div class="input-group">
+                    <label>STUDENT ID ENROLLMENT KEY</label>
+                    <div class="input-container">
+                        <input type="text" id="studentId" placeholder="e.g., 2024F-BCS-005" required>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>SECURITY ACCESS PASSWORD</label>
+                    <div class="input-container">
+                        <input type="password" id="studentPassword" placeholder="••••••••" required>
+                        <span id="togglePasswordStudent" class="toggle-password">👁️</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn">Authorize Terminal Session</button>
+            </form>
+
+            <a href="index.html" class="back-link">
+                ← RETURN TO MAIN LANDING GATEWAY
+            </a>
+        </div>
+    </div>
+
+    <script>
+    // Visibility Toggle Logic
+    const togglePasswordStudent = document.getElementById('togglePasswordStudent');
+    const passwordInputStudent = document.getElementById('studentPassword');
+
+    togglePasswordStudent.addEventListener('click', function () {
+        const type = passwordInputStudent.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInputStudent.setAttribute('type', type);
+        this.textContent = type === 'password' ? '👁️' : '🙈';
+    });
+
+    // Form Processing Pipeline
+    document.getElementById('studentLoginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const student_id = document.getElementById('studentId').value; 
+        const password = passwordInputStudent.value;
+
+        try {
+            const response = await fetch('http://localhost:5000/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ student_id, password, role: 'student' })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('student_name', data.name);
+                localStorage.setItem('student_id', student_id);
+                window.location.href = 'dashboard.html';
+            } else {
+                alert(data.message || "Invalid Student Credentials.");
+            }
+        } catch (err) {
+            console.error("Network interface error:", err);
+            alert("Unable to establish a pipeline connection with the SSUET backend system.");
+        }
+    });
+    </script>
+</body>
+</html>

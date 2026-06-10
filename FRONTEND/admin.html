@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Librarian Panel | SSUET Library Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #e8dcc4; font-family: 'Segoe UI', sans-serif; }
+        .bg-navy { background-color: #0f172a; }
+        .text-gold { color: #d4af37; }
+        .border-gold { border-color: #d4af37; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+ 
+    <nav class="bg-navy p-6 md:p-8 rounded-2xl mb-8 flex justify-between items-center shadow-lg border-b-4 border-gold">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-black text-white tracking-tighter">SSUET SMART LIBRARY</h1>
+            <p class="text-gold uppercase text-[10px] tracking-[0.25em] font-bold mt-1">Librarian Admin Control Analytics</p>
+        </div>
+        <button class="bg-[#d4af37] text-[#0f172a] font-bold px-6 py-3 rounded-lg text-xs uppercase tracking-widest hover:bg-white transition-all shadow-md" 
+                onclick="localStorage.removeItem('adminToken'); localStorage.removeItem('adminRole'); window.location.href='index.html';">
+            Sign Out
+        </button>
+    </nav>
+ 
+    <main class="space-y-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border-l-4 border-l-navy">
+                <h3 class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Total Assets Issued</h3>
+                <h2 id="total-issued-metric" class="text-4xl md:text-5xl font-black mt-2 text-slate-800">0</h2>
+            </div>
+            <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border-l-4 border-l-red-500">
+                <h3 class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Overdue Accounts</h3>
+                <h2 id="defaulters-metric" class="text-4xl md:text-5xl font-black mt-2 text-red-600">0</h2>
+            </div>
+            <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border-l-4 border-l-emerald-600">
+                <h3 class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Aggregated Fines</h3>
+                <h2 class="text-3xl md:text-4xl font-black mt-2 text-emerald-700">PKR <span id="fines-metric">0.00</span></h2>
+            </div>
+        </div>
+ 
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-sm border border-slate-800 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-[10px] text-gold uppercase tracking-widest font-bold">Active Inventory Stock</h3>
+                    <h2 id="inventory-metric" class="text-4xl font-black mt-2 text-white">0</h2>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-2 font-medium">Available book assets ready for loan validation cycles.</p>
+            </div>
+            <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-sm border border-slate-800 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-[10px] text-gold uppercase tracking-widest font-bold">Daily Transaction Operations</h3>
+                    <h2 id="daily-traffic-metric" class="text-4xl font-black mt-2 text-white">0</h2>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-2 font-medium">Accumulated server checkout & processing return logs generated today.</p>
+            </div>
+            <div class="bg-slate-950 text-white p-6 rounded-2xl shadow-sm border border-slate-800 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-[10px] text-amber-500 uppercase tracking-widest font-bold mb-2">🔥 Most Borrowed Assets</h3>
+                    <ol id="popular-books-list" class="text-xs space-y-1.5 list-decimal list-inside text-slate-300 font-medium">
+                        <li class="text-slate-500 italic">No historical borrows recorded...</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+ 
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest">System Operations Audit Trail</h3>
+                    <span class="text-[9px] bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full uppercase font-bold tracking-widest animate-pulse">Live Database</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left min-w-[600px]">
+                        <thead class="bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
+                            <tr><th class="p-4 md:p-6">ID</th><th class="p-4 md:p-6">Event</th><th class="p-4 md:p-6">User</th><th class="p-4 md:p-6">Details</th><th class="p-4 md:p-6">Timestamp</th></tr>
+                        </thead>
+                        <tbody id="logs-body" class="text-sm text-slate-700 divide-y divide-slate-100">
+                            <tr><td colspan="5" class="p-6 text-center text-slate-400">Synchronizing system logs ledger...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+ 
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 bg-red-50/40">
+                    <h3 class="font-bold text-red-800 uppercase text-sm tracking-widest flex items-center gap-2">
+                        ⚠️ Defaulters Directory
+                    </h3>
+                    <p class="text-[11px] text-red-600/80 mt-0.5 font-medium">Active structural listing of users with unreturned overdue books.</p>
+                </div>
+                <div id="defaulters-list-body" class="p-4 space-y-3 max-h-[420px] overflow-y-auto bg-slate-50/50">
+                    <p class="text-xs text-slate-400 text-center py-4 italic">No active account defaults identified.</p>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- ─── BOOKS INVENTORY + QR CODE SECTION ─── -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest">📚 Books Inventory & QR Codes</h3>
+                    <p class="text-[11px] text-slate-400 mt-0.5 font-medium">Click "Show QR" to display a scannable code for student issuance.</p>
+                </div>
+                <input id="book-search" type="text" placeholder="Search title, author, QR code..." 
+                       class="border border-slate-200 rounded-lg px-4 py-2 text-xs w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                       oninput="filterBooks(this.value)">
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left min-w-[700px]">
+                    <thead class="bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
+                        <tr>
+                            <th class="p-4 md:p-5">Title</th>
+                            <th class="p-4 md:p-5">Author</th>
+                            <th class="p-4 md:p-5">Department</th>
+                            <th class="p-4 md:p-5">QR Code</th>
+                            <th class="p-4 md:p-5">Status</th>
+                            <th class="p-4 md:p-5">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="books-body" class="text-sm text-slate-700 divide-y divide-slate-100">
+                        <tr><td colspan="6" class="p-6 text-center text-slate-400">Loading inventory...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+ 
+        <!-- QR Modal -->
+        <div id="qr-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4" onclick="handleModalClick(event)">
+            <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-xs w-full text-center border border-slate-200" onclick="event.stopPropagation()">
+                <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1">Scan to Issue</p>
+                <h3 class="font-black text-slate-800 text-sm tracking-tight mb-1 leading-tight" id="qr-modal-title">Book Title</h3>
+                <p class="text-[11px] text-slate-400 font-mono mb-5 bg-slate-50 px-3 py-1 rounded-lg inline-block" id="qr-modal-code">QR-CODE</p>
+                <div id="qr-render-target" class="flex justify-center mb-5"></div>
+                <p class="text-[10px] text-slate-400 mb-5">Point student's mobile camera at this QR code to issue book</p>
+                <button onclick="closeQrModal()" 
+                        class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-700 transition">
+                    Close
+                </button>
+            </div>
+        </div>
+ 
+    </main>
+ 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        // ─── GUARD ───
+        const ADMIN_TOKEN = localStorage.getItem('adminToken');
+        if (!ADMIN_TOKEN) {
+            alert("Session expired or unauthorized. Please log in as librarian.");
+            window.location.href = 'index.html';
+        }
+ 
+        // ─── Store all books for filtering ───
+        let allBooks = [];
+ 
+        async function loadAdminData() {
+            const token = localStorage.getItem('adminToken');
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/metrics', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+ 
+                if (!response.ok) {
+                    const err = await response.json();
+                    alert("Error: " + (err.message || "Unauthorized access."));
+                    return;
+                }
+ 
+                const data = await response.json();
+ 
+                document.getElementById('total-issued-metric').innerText = data.total_issued;
+                document.getElementById('defaulters-metric').innerText = data.active_defaulters;
+                document.getElementById('fines-metric').innerText = parseFloat(data.fine_stats).toFixed(2);
+                document.getElementById('inventory-metric').innerText = data.active_inventory || 0;
+                document.getElementById('daily-traffic-metric').innerText = data.daily_transactions || 0;
+ 
+                const popularContainer = document.getElementById('popular-books-list');
+                if (data.most_borrowed && data.most_borrowed.length > 0) {
+                    popularContainer.innerHTML = data.most_borrowed.map(book => `
+                        <li class="border-b border-slate-800 pb-1 last:border-0 truncate" title="${book.title}">
+                            <span class="text-white font-bold">${book.title}</span> 
+                            <span class="text-gold text-[10px] ml-1 font-mono">(${book.borrow_count} loans)</span>
+                        </li>
+                    `).join('');
+                } else {
+                    popularContainer.innerHTML = `<li class="text-slate-500 italic">No historical borrows recorded...</li>`;
+                }
+ 
+                const defaultersContainer = document.getElementById('defaulters-list-body');
+                if (data.defaulters_list && data.defaulters_list.length > 0) {
+                    defaultersContainer.innerHTML = data.defaulters_list.map(student => `
+                        <div class="p-3 bg-white border border-red-100 rounded-xl shadow-xs flex flex-col gap-2">
+                            <div>
+                                <h4 class="text-xs font-black text-slate-900 uppercase">${student.name}</h4>
+                                <p class="text-[10px] text-slate-400 font-mono font-bold">${student.student_id}</p>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <div class="text-[10px] font-semibold text-red-700 uppercase bg-red-50 px-2 py-0.5 rounded border border-red-100/50">
+                                    ${student.department} | Sem ${student.semester}
+                                </div>
+                                <button onclick="clearFine('${student.student_id}')" 
+                                        class="bg-emerald-600 text-white text-[9px] font-bold px-3 py-1 rounded hover:bg-emerald-700 transition-colors">
+                                    CLEAR FINE
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    defaultersContainer.innerHTML = `<p class="text-xs text-slate-400 text-center py-4 italic">🎉 No active account defaults identified.</p>`;
+                }
+ 
+                const tbody = document.getElementById('logs-body');
+                if (data.logs && data.logs.length > 0) {
+                    tbody.innerHTML = data.logs.map(log => {
+                        const displayId = log.id || log.log_id || 'N/A';
+                        const isWarning = log.action_type === "OVERDUE_WARNING";
+                        const eventStyle = isWarning ? "text-red-600 font-extrabold" : "text-slate-900 font-bold";
+                        const rowBg = isWarning ? "bg-red-50/40" : "hover:bg-slate-50/80";
+                        return `
+                            <tr class="transition-colors ${rowBg}">
+                                <td class="p-4 md:p-6 font-mono text-xs text-slate-400">${displayId}</td>
+                                <td class="p-4 md:p-6 text-xs uppercase tracking-wide ${eventStyle}">${log.action_type}</td>
+                                <td class="p-4 md:p-6 font-mono text-xs text-slate-600 font-bold">${log.user_id}</td>
+                                <td class="p-4 md:p-6 text-slate-500 italic text-xs max-w-xs truncate" title="${log.details}">${log.details}</td>
+                                <td class="p-4 md:p-6 text-xs font-mono text-slate-400">${new Date(log.timestamp).toLocaleString()}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">No activity logs recorded in database.</td></tr>`;
+                }
+ 
+            } catch (err) {
+                console.error("Dashboard Load Error:", err);
+                alert("Failed to connect to server.");
+            }
+        }
+ 
+        // ─── LOAD BOOKS ───
+        async function loadBooks() {
+            const token = localStorage.getItem('adminToken');
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/books', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                allBooks = data.books || [];
+                renderBooks(allBooks);
+            } catch (err) {
+                document.getElementById('books-body').innerHTML = 
+                    `<tr><td colspan="6" class="p-6 text-center text-red-400">Failed to load books. Check server connection.</td></tr>`;
+            }
+        }
+ 
+        function renderBooks(books) {
+            const tbody = document.getElementById('books-body');
+            if (!books.length) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">No books found.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = books.map(book => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="p-4 md:p-5 font-semibold text-slate-800 max-w-[200px] truncate" title="${book.title}">${book.title}</td>
+                    <td class="p-4 md:p-5 text-slate-500 text-xs">${book.author}</td>
+                    <td class="p-4 md:p-5 text-xs text-slate-500">${book.department_category}</td>
+                    <td class="p-4 md:p-5 font-mono text-xs text-slate-600 bg-slate-50 rounded">${book.qr_code}</td>
+                    <td class="p-4 md:p-5">
+                        <span class="text-[10px] font-bold uppercase px-2 py-1 rounded-full ${
+                            book.availability === 'AVAILABLE' 
+                            ? 'bg-emerald-100 text-emerald-700' 
+                            : 'bg-red-100 text-red-700'
+                        }">
+                            ${book.availability}
+                        </span>
+                    </td>
+                    <td class="p-4 md:p-5">
+                        <button onclick="showQrModal('${book.qr_code}', \`${book.title.replace(/`/g, "'")}\`)"
+                                class="bg-[#0f172a] text-[#d4af37] text-[10px] font-bold px-4 py-2 rounded-lg hover:bg-slate-700 transition uppercase tracking-widest">
+                            Show QR
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+ 
+        function filterBooks(query) {
+            const q = query.toLowerCase();
+            const filtered = allBooks.filter(b =>
+                b.title.toLowerCase().includes(q) ||
+                b.author.toLowerCase().includes(q) ||
+                b.qr_code.toLowerCase().includes(q) ||
+                b.department_category.toLowerCase().includes(q)
+            );
+            renderBooks(filtered);
+        }
+ 
+        // ─── QR MODAL ───
+        function showQrModal(qrCode, title) {
+            document.getElementById('qr-modal-title').innerText = title;
+            document.getElementById('qr-modal-code').innerText = qrCode;
+ 
+            // Clear previous QR
+            const target = document.getElementById('qr-render-target');
+            target.innerHTML = '';
+ 
+            // Generate new QR
+            new QRCode(target, {
+                text: qrCode,
+                width: 180,
+                height: 180,
+                colorDark: "#0f172a",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+ 
+            const modal = document.getElementById('qr-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+ 
+        function closeQrModal() {
+            const modal = document.getElementById('qr-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+ 
+        function handleModalClick(e) {
+            if (e.target === document.getElementById('qr-modal')) closeQrModal();
+        }
+ 
+        // ─── CLEAR FINE ───
+        async function clearFine(studentId) {
+            if (!confirm(`Are you sure you want to clear all fines for student ${studentId}?`)) return;
+ 
+            const token = localStorage.getItem('adminToken');
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/clear-fine', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ student_id: studentId })
+                });
+ 
+                const result = await response.json();
+                if (result.success) {
+                    const btn = document.querySelector(`button[onclick="clearFine('${studentId}')"]`);
+                    if (btn) {
+                        const card = btn.closest('div.p-3');
+                        btn.disabled = true;
+                        btn.textContent = "✓ CLEARED";
+                        btn.className = "bg-slate-400 text-white text-[9px] font-bold px-3 py-1 rounded cursor-not-allowed";
+                        const fineNote = document.createElement('p');
+                        fineNote.className = "text-[10px] text-emerald-600 font-bold mt-1";
+                        fineNote.textContent = "Fine balance: PKR 0.00";
+                        card.appendChild(fineNote);
+                    }
+                    setTimeout(() => loadAdminData(), 1200);
+                } else {
+                    alert("Error: " + result.message);
+                }
+            } catch (err) {
+                console.error("Error clearing fine:", err);
+                alert("Failed to connect to server.");
+            }
+        }
+ 
+        loadAdminData();
+        loadBooks();
+    </script>
+</body>
+</html>

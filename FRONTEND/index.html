@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSUET Library Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes messageSequence {
+            0%, 5% { opacity: 0; }
+            10%, 25% { opacity: 1; content: "Empowering minds through knowledge."; }
+            30%, 35% { opacity: 0; }
+            40%, 55% { opacity: 1; content: "Your gateway to academic excellence."; }
+            60%, 65% { opacity: 0; }
+            70%, 85% { opacity: 1; content: "Connecting the SSUET community."; }
+            90%, 100% { opacity: 0; }
+        }
+        .animate-msg::before { 
+            animation: messageSequence 18s infinite; 
+            display: inline-block;
+            content: "Empowering minds through knowledge."; 
+        }
+    </style>
+</head>
+<body class="bg-[#F8F7F4] text-gray-900 min-h-screen font-sans">
+
+    <!-- Background Overlay -->
+    <div class="fixed inset-0 z-0 bg-cover bg-center opacity-[0.15]" 
+         style="background-image: url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?q=80&w=1920&auto=format&fit=crop');">
+    </div>
+
+    <!-- SSUET Header -->
+    <header class="relative z-10 border-b border-gray-300 px-8 py-5 bg-[#f0eadd]/90 backdrop-blur">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-6">
+                <img src="ssuetlogo.png" alt="SSUET Logo" class="h-20 w-20 object-contain">
+                <div class="border-l-2 border-[#b08d44] h-10"></div>
+                <div>
+                    <h1 class="text-lg font-bold uppercase tracking-widest text-gray-900">Sir Syed University</h1>
+                    <span class="text-xs text-gray-600 uppercase tracking-widest font-semibold">Library Management System</span>
+                </div>
+            </div>
+            <div class="animate-msg text-xs font-medium text-[#b08d44] uppercase tracking-widest italic w-72 text-right"></div>
+        </div>
+    </header>
+
+    <main class="relative z-10 max-w-7xl mx-auto px-8 py-16 space-y-16">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-16">
+            <!-- Left Branding Descriptions -->
+            <div class="lg:col-span-7 space-y-8">
+                <h2 class="text-5xl font-extrabold text-gray-900 leading-tight">Library Management <br> <span class="text-[#b08d44]">System</span></h2>
+                <div class="space-y-6 text-sm text-gray-800 leading-relaxed font-medium">
+                    <p>The Library Management System serves as the centralized digital backbone for the Sir Syed University knowledge repository. Designed for high-concurrency environments, this engine orchestrates the entire lifecycle of academic resources, from automated cataloging and real-time inventory tracking to faculty-led circulation audits.</p>
+                    <p>By replacing legacy manual processes, this system ensures institutional efficiency, secure authentication, and seamless access to critical research assets for the entire SSUET engineering and technology community.</p>
+                    <p>Our commitment is to provide a robust digital infrastructure that supports both students and faculty in their pursuit of research.</p>
+                </div>
+            </div>
+
+            <!-- Selection Card with Cleaner, Bold Borders and No Box -->
+            <div class="lg:col-span-5">
+                <div class="bg-white p-8 rounded-lg shadow-2xl border-2 border-gray-300 flex flex-col justify-center h-full min-h-[340px]">
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-[#b08d44] mb-8 text-center">Select Portal Access Option</h3>
+                    
+                    <div class="grid grid-cols-1 gap-4">
+                        <a href="signup.html" target="_blank" class="w-full py-4 text-center text-xs font-bold uppercase tracking-widest bg-gray-50 text-gray-700 hover:bg-[#b08d44] hover:text-white rounded border border-gray-300 hover:border-[#b08d44] shadow-sm transition-all duration-300">
+                            Sign Up
+                        </a>
+                        <a href="studentlogin.html" target="_blank" class="w-full py-4 text-center text-xs font-bold uppercase tracking-widest bg-gray-50 text-gray-700 hover:bg-[#b08d44] hover:text-white rounded border border-gray-300 hover:border-[#b08d44] shadow-sm transition-all duration-300">
+                            Student Login Portal
+                        </a>
+                        <!-- Linked directly to our newly isolated admin authentication interface file -->
+                        <a href="adminlogin.html" target="_blank" class="w-full py-4 text-center text-xs font-bold uppercase tracking-widest bg-gray-50 text-gray-700 hover:bg-gray-800 hover:text-white rounded border border-gray-300 hover:border-gray-800 shadow-sm transition-all duration-300">
+                            Admin Authorization Entry
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rules and Support Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pb-16">
+            <div class="bg-white p-8 rounded-lg border-2 border-gray-300 shadow-sm">
+                <h3 class="text-sm font-bold uppercase text-[#b08d44] mb-4">Detailed Circulation Rules</h3>
+                <ul class="text-xs text-gray-600 space-y-3 list-disc pl-4">
+                    <li>Maximum limit: 3 physical books per student.</li>
+                    <li>Standard loan duration: 14 days; renewals based on availability.</li>
+                    <li>Late fines: PKR 100 per day per book.</li>
+                </ul>
+            </div>
+            <div class="bg-white p-8 rounded-lg border-2 border-gray-300 shadow-sm">
+                <h3 class="text-sm font-bold uppercase text-[#b08d44] mb-4">Support & Contact Information</h3>
+                <p class="text-xs text-gray-600 leading-relaxed">Technical assistance is available during office hours.</p>
+                <p class="text-xs text-gray-600 mt-4 font-semibold">Email: library.support@ssuet.edu.pk</p>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
