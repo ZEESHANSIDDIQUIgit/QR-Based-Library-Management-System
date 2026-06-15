@@ -2,55 +2,90 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>Issue Asset Terminal | SSUET</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
+        body { font-family: system-ui, -apple-system, sans-serif; }
         .bg-garlic { background-color: #E2D6A4; }
         .bg-white-gold { background-color: #fdfcf5; }
         .text-emerald { color: #065f46; }
         .bg-emerald { background-color: #065f46; }
- 
-        /* ── Camera preview box ── */
+
         #preview-box {
-            border: 2px dashed #065f46;
-            min-height: 280px;
+            border: 2px solid #065f46;
+            min-height: 300px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            background: #fff;
+            background: #050e09;
             margin-bottom: 1rem;
             position: relative;
-            border-radius: 0.75rem;
-            transition: border-color 0.3s;
+            border-radius: 0.9rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.4);
         }
- 
-        /* SUCCESS flash */
+
         #preview-box.scan-success {
             border-color: #16a34a;
             box-shadow: 0 0 0 4px rgba(22,163,74,0.25);
         }
- 
-        /* Make the html5-qrcode video/canvas fill the box */
-        #reader {
-            width: 100% !important;
-        }
-        #reader video {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover !important;
-        }
-        #reader canvas {
-            width: 100% !important;
-        }
- 
-        /* Hide the ugly default html5-qrcode UI chrome */
+
+        #reader { width: 100% !important; }
+        #reader video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+        #reader canvas { width: 100% !important; }
+
         #reader__dashboard { display: none !important; }
         #reader__header_message { display: none !important; }
- 
-        /* Scanning pulse ring overlay */
+        #reader__scan_region { border: none !important; }
+        #reader__scan_region img { display: none !important; }
+
+        .viewfinder {
+            pointer-events: none;
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 15;
+        }
+        .vf-inner {
+            width: 62%;
+            max-width: 240px;
+            aspect-ratio: 1 / 1;
+            position: relative;
+        }
+        .vf-inner span {
+            position: absolute;
+            width: 34px;
+            height: 34px;
+            border-color: #10b981;
+            border-style: solid;
+        }
+        .vf-tl { top: 0; left: 0; border-width: 4px 0 0 4px; border-radius: 8px 0 0 0; }
+        .vf-tr { top: 0; right: 0; border-width: 4px 4px 0 0; border-radius: 0 8px 0 0; }
+        .vf-bl { bottom: 0; left: 0; border-width: 0 0 4px 4px; border-radius: 0 0 0 8px; }
+        .vf-br { bottom: 0; right: 0; border-width: 0 4px 4px 0; border-radius: 0 0 8px 0; }
+
+        @keyframes scan-sweep {
+            0%   { top: 8%; opacity: 0.9; }
+            50%  { top: 90%; opacity: 0.9; }
+            100% { top: 8%; opacity: 0.9; }
+        }
+        .scan-sweep-line {
+            position: absolute;
+            left: 4%;
+            right: 4%;
+            height: 2px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, transparent, #10b981 50%, transparent);
+            box-shadow: 0 0 8px 1px rgba(16,185,129,0.7);
+            animation: scan-sweep 2.2s ease-in-out infinite;
+        }
+
         @keyframes pulse-ring {
             0%   { transform: scale(0.95); opacity: 0.7; }
             70%  { transform: scale(1.05); opacity: 0.2; }
@@ -74,147 +109,183 @@
             border-radius: 12px;
             animation: pulse-ring 1.6s ease-out infinite;
         }
- 
-        /* Status bar */
+
         #status-bar {
-            font-size: 0.78rem;
-            font-weight: 700;
-            letter-spacing: 0.05em;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
-            padding: 6px 14px;
+            padding: 6px 18px;
             border-radius: 9999px;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             transition: background 0.3s, color 0.3s;
         }
         .status-idle    { background: #f1f5f9; color: #64748b; }
         .status-active  { background: #d1fae5; color: #065f46; }
         .status-success { background: #bbf7d0; color: #166534; }
         .status-error   { background: #fee2e2; color: #991b1b; }
- 
-        /* Dot indicator */
+
         .dot {
             width: 8px; height: 8px;
             border-radius: 50%;
             display: inline-block;
+            flex-shrink: 0;
         }
         .dot-idle    { background: #94a3b8; }
         .dot-active  { background: #10b981; animation: pulse-ring 1s ease-out infinite; }
         .dot-success { background: #16a34a; }
         .dot-error   { background: #ef4444; }
+
+        #placeholder-text { color: #6ee7b7; }
+        #placeholder-text svg { color: #6ee7b7; opacity: 0.4; }
+
+        .lift-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .lift-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px -8px rgba(6,95,70,0.25);
+        }
+
+        #manual_input:focus {
+            outline: none;
+            border-color: #065f46;
+            box-shadow: 0 0 0 3px rgba(6,95,70,0.12);
+        }
+
+        .btn-primary {
+            background: #065f46;
+            color: #fff;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn-primary:hover { background: #047857; }
+        .btn-primary:active { transform: scale(0.98); }
+
+        .btn-dark {
+            background: #0f172a;
+            color: #34d399;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn-dark:hover:not(:disabled) { background: #1e293b; }
+        .btn-dark:active:not(:disabled) { transform: scale(0.98); }
+        .btn-dark:disabled { opacity: 0.35; cursor: default; }
+
+        .btn-stop {
+            background: #dc2626;
+            color: #fff;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn-stop:hover { background: #b91c1c; }
+        .btn-stop:active { transform: scale(0.98); }
     </style>
 </head>
 <body class="bg-garlic min-h-screen flex flex-col font-sans text-slate-800">
- 
+
     <nav class="bg-slate-950 text-white p-6 shadow-md border-b-4 border-emerald-800">
         <div class="max-w-5xl mx-auto flex justify-between items-center">
             <div>
                 <h1 class="text-xl font-bold tracking-wider text-white">Scan QR to Issue Book</h1>
                 <p class="text-xs text-emerald-400 uppercase tracking-widest font-bold">Allocation Registry Mode</p>
             </div>
-            <a href="dashboard.html" class="border border-emerald-700 text-emerald-400 px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-800 transition">Back to Panel</a>
+            <a href="dashboard.html" class="border border-emerald-700 text-emerald-400 px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-800 transition">&larr; Back to Panel</a>
         </div>
     </nav>
- 
+
     <main class="flex-1 flex flex-col items-center justify-center p-6 gap-6">
-        <div class="bg-white-gold p-8 rounded-2xl shadow-xl border border-emerald-700/30 w-full max-w-lg text-center">
- 
-            <!-- Tabs -->
+        <div class="bg-white-gold p-8 rounded-2xl shadow-xl border border-emerald-700/30 w-full max-w-lg text-center lift-card">
+
             <div class="flex border-b border-slate-200 mb-4">
-                <button id="tab-camera" onclick="switchMode('camera')" class="w-1/2 pb-2 font-bold text-sm text-emerald-700 border-b-2 border-emerald-700 transition">Live Camera</button>
-                <button id="tab-file"   onclick="switchMode('file')"   class="w-1/2 pb-2 font-bold text-sm text-slate-400  border-b-2 border-transparent transition">Upload Image</button>
+                <button id="tab-camera" onclick="switchMode('camera')" class="w-1/2 pb-2 font-bold text-sm uppercase tracking-widest text-emerald-700 border-b-2 border-emerald-700 transition">Live Camera</button>
+                <button id="tab-file"   onclick="switchMode('file')"   class="w-1/2 pb-2 font-bold text-sm uppercase tracking-widest text-slate-400  border-b-2 border-transparent transition">Upload Image</button>
             </div>
- 
-            <!-- Status bar -->
+
             <div class="flex justify-center mb-3">
                 <span id="status-bar" class="status-idle">
                     <span id="status-dot" class="dot dot-idle"></span>
                     <span id="status-msg">Camera off</span>
                 </span>
             </div>
- 
-            <!-- Preview box -->
+
             <div id="preview-box">
-                <!-- Scanning ring shown while camera is live -->
                 <div id="scan-ring" class="scan-ring hidden"></div>
- 
-                <!-- html5-qrcode mounts here for LIVE camera -->
+
+                <div id="viewfinder" class="viewfinder hidden">
+                    <div class="vf-inner">
+                        <span class="vf-tl"></span>
+                        <span class="vf-tr"></span>
+                        <span class="vf-bl"></span>
+                        <span class="vf-br"></span>
+                        <div class="scan-sweep-line"></div>
+                    </div>
+                </div>
+
                 <div id="reader"></div>
- 
-                <!-- Image preview for file upload mode -->
-                <img id="image-preview" src="#" alt="QR Preview" class="hidden max-h-48 object-contain">
- 
-                <!-- Placeholder message -->
-                <div id="placeholder-text" class="text-slate-400 p-6 flex flex-col items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+
+                <img id="image-preview" src="#" alt="QR Preview" class="hidden max-h-64 object-contain rounded-lg">
+
+                <div id="placeholder-text" class="p-6 flex flex-col items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
-                    <p id="placeholder-msg" class="text-sm font-medium">Click "Start Camera" to begin scanning</p>
+                    <p id="placeholder-msg" class="text-sm font-semibold">Click "Start Camera" to begin scanning</p>
                 </div>
             </div>
- 
-            <!-- File controls -->
+
             <div id="file-controls" class="hidden">
                 <input type="file" id="qr-file-input" accept="image/*" class="hidden" onchange="previewImage(event)">
-                <button onclick="document.getElementById('qr-file-input').click()" class="w-full mb-3 bg-emerald-700 text-white py-3 rounded-xl font-bold hover:bg-emerald-900 transition">Choose Image</button>
-                <button id="scan-btn" onclick="processSelectedImage()" class="w-full bg-slate-900 text-emerald-400 py-3 rounded-xl font-bold hover:bg-slate-800 transition disabled:opacity-40" disabled>SCAN SELECTED IMAGE</button>
+                <button onclick="document.getElementById('qr-file-input').click()" class="btn-primary w-full mb-3 py-3 rounded-xl font-bold uppercase tracking-widest text-sm">Choose Image</button>
+                <button id="scan-btn" onclick="processSelectedImage()" class="btn-dark w-full py-3 rounded-xl font-bold uppercase tracking-widest text-sm" disabled>Scan Selected Image</button>
             </div>
- 
-            <!-- Camera controls -->
+
             <div id="camera-controls">
-                <button id="camera-toggle-btn" onclick="toggleCamera()" class="w-full bg-emerald-700 text-white py-3 rounded-xl font-bold hover:bg-emerald-900 transition">
+                <button id="camera-toggle-btn" onclick="toggleCamera()" class="btn-primary w-full py-3 rounded-xl font-bold uppercase tracking-widest text-sm">
                     Start Camera
                 </button>
             </div>
         </div>
- 
-        <!-- Manual input -->
-        <div class="bg-white-gold p-8 rounded-2xl shadow-md border border-emerald-700/30 w-full max-w-lg text-center">
-            <h4 class="font-bold text-sm text-slate-600 uppercase mb-4">Manual Input Verification</h4>
-            <input type="text" id="manual_input" class="w-full bg-white border border-slate-200 p-4 rounded-xl text-center font-mono" placeholder="QR-DB-01">
-            <button class="w-full mt-4 bg-slate-900 text-emerald-400 py-3 rounded-xl font-bold hover:bg-slate-800 transition" onclick="process(document.getElementById('manual_input').value)">VERIFY & PROCESS ISSUE</button>
+
+        <div class="bg-white-gold p-8 rounded-2xl shadow-md border border-emerald-700/30 w-full max-w-lg text-center lift-card">
+            <h4 class="font-extrabold text-xs text-slate-500 uppercase tracking-widest mb-4">Manual Input Verification</h4>
+            <input type="text" id="manual_input" class="w-full bg-white border border-slate-200 p-4 rounded-xl text-center font-mono text-sm transition" placeholder="QR-DB-01">
+            <button class="btn-dark w-full mt-4 py-3 rounded-xl font-bold uppercase tracking-widest text-sm" onclick="process(document.getElementById('manual_input').value)">Verify &amp; Process Issue</button>
         </div>
     </main>
- 
+
     <script>
-        // ── State ──────────────────────────────────────────────
         let selectedFile      = null;
-        let html5QrScanner    = null;   // live camera instance
-        let fileQrDecoder     = null;   // file scan instance  (lazy-created)
+        let html5QrScanner    = null;
+        let fileQrDecoder     = null;
         let isCameraRunning   = false;
         let currentMode       = 'camera';
- 
-        // ── Boot ───────────────────────────────────────────────
+
         window.addEventListener('DOMContentLoaded', () => switchMode('camera'));
- 
-        // ── Tab switch ─────────────────────────────────────────
+
         function switchMode(mode) {
             currentMode = mode;
-            stopLiveCamera();           // always stop camera first
- 
+            stopLiveCamera();
+
             const isCamera = (mode === 'camera');
- 
-            // Tab styles
+
             document.getElementById('tab-camera').className =
-                'w-1/2 pb-2 font-bold text-sm transition ' +
-                (isCamera ? 'text-emerald-700 border-b-2 border-emerald-700'
-                           : 'text-slate-400 border-b-2 border-transparent');
+                'w-1/2 pb-2 font-bold text-sm uppercase tracking-widest transition border-b-2 ' +
+                (isCamera ? 'text-emerald-700 border-emerald-700'
+                           : 'text-slate-400 border-transparent');
             document.getElementById('tab-file').className =
-                'w-1/2 pb-2 font-bold text-sm transition ' +
-                (!isCamera ? 'text-emerald-700 border-b-2 border-emerald-700'
-                            : 'text-slate-400 border-b-2 border-transparent');
- 
-            // Show / hide control panels
+                'w-1/2 pb-2 font-bold text-sm uppercase tracking-widest transition border-b-2 ' +
+                (!isCamera ? 'text-emerald-700 border-emerald-700'
+                            : 'text-slate-400 border-transparent');
+
             document.getElementById('file-controls').classList.toggle('hidden',  isCamera);
             document.getElementById('camera-controls').classList.toggle('hidden', !isCamera);
- 
-            // Preview area
+
             document.getElementById('reader').style.display        = 'none';
             document.getElementById('image-preview').classList.add('hidden');
             document.getElementById('scan-ring').classList.add('hidden');
- 
+            document.getElementById('viewfinder').classList.add('hidden');
+
             if (!isCamera && selectedFile) {
                 document.getElementById('image-preview').classList.remove('hidden');
                 document.getElementById('placeholder-text').classList.add('hidden');
@@ -223,26 +294,24 @@
                     ? 'Click "Start Camera" to begin scanning'
                     : 'No image chosen');
             }
- 
+
             setStatus('idle', 'Camera off');
         }
- 
-        // ── Camera toggle ──────────────────────────────────────
+
         async function toggleCamera() {
             isCameraRunning ? stopLiveCamera() : startLiveCamera();
         }
- 
+
         async function startLiveCamera() {
             setStatus('active', 'Starting camera…');
             showPlaceholder('Opening camera…');
- 
-            // Make the reader div visible BEFORE html5-qrcode touches it
+
             const readerEl = document.getElementById('reader');
             readerEl.style.display = 'block';
             readerEl.style.width   = '100%';
- 
+
             html5QrScanner = new Html5Qrcode("reader");
- 
+
             const config = {
                 fps: 12,
                 qrbox: (w, h) => ({
@@ -251,26 +320,26 @@
                 }),
                 aspectRatio: 1.0
             };
- 
+
             try {
                 await html5QrScanner.start(
                     { facingMode: "environment" },
                     config,
                     onScanSuccess,
-                    onScanFailure     // ← per-frame error (not critical)
+                    onScanFailure
                 );
- 
+
                 isCameraRunning = true;
                 hidePlaceholder();
                 document.getElementById('scan-ring').classList.remove('hidden');
+                document.getElementById('viewfinder').classList.remove('hidden');
                 setStatus('active', 'Scanning — point at QR code');
                 setCameraBtn('stop');
- 
+
             } catch (err) {
                 console.error("Camera start error:", err);
                 readerEl.style.display = 'none';
- 
-                // Friendly message depending on error type
+
                 const msg = err.toString().includes('Permission')
                     ? 'Camera permission denied. Allow camera access in your browser settings.'
                     : 'Could not start camera. Try a different browser or check permissions.';
@@ -279,59 +348,57 @@
                 stopLiveCamera();
             }
         }
- 
+
         async function stopLiveCamera() {
             document.getElementById('scan-ring').classList.add('hidden');
- 
+            document.getElementById('viewfinder').classList.add('hidden');
+
             if (html5QrScanner) {
                 try {
                     if (isCameraRunning) await html5QrScanner.stop();
-                    html5QrScanner.clear();   // removes the DOM element html5-qrcode injected
+                    html5QrScanner.clear();
                 } catch(e) { /* ignore */ }
                 html5QrScanner = null;
             }
- 
+
             isCameraRunning = false;
             document.getElementById('reader').style.display = 'none';
- 
+
             if (currentMode === 'camera') {
                 showPlaceholder('Click "Start Camera" to begin scanning');
                 setStatus('idle', 'Camera off');
                 setCameraBtn('start');
             }
         }
- 
-        // ── Scan callbacks (Corrected Duplicate Declaration) ────────────────────
+
         function onScanSuccess(decodedText) {
             alert("✅ Scanned: " + decodedText);
             const box = document.getElementById('preview-box');
-            
+
             box.classList.add('scan-success');
             setStatus('success', 'QR detected! Processing…');
             document.getElementById('scan-ring').classList.add('hidden');
- 
+            document.getElementById('viewfinder').classList.add('hidden');
+
             stopLiveCamera();
- 
+
             setTimeout(() => {
                 box.classList.remove('scan-success');
                 process(decodedText);
             }, 600);
         }
- 
-        // This fires on every frame that has no QR — expected, not an error
+
         function onScanFailure(error) {
-            // Only log genuine decode failures, not "no QR in frame"
             if (!error.includes('No QR code found')) {
                 console.warn("Scan frame error:", error);
             }
         }
- 
-        // ── File upload ────────────────────────────────────────
+
         function previewImage(event) {
             const file = event.target.files[0];
             if (!file) return;
             selectedFile = file;
- 
+
             const reader = new FileReader();
             reader.onload = (e) => {
                 const img = document.getElementById('image-preview');
@@ -343,18 +410,16 @@
             };
             reader.readAsDataURL(file);
         }
- 
+
         async function processSelectedImage() {
             if (!selectedFile) return;
- 
+
             setStatus('active', 'Decoding image…');
- 
-            // Lazy-create file decoder targeting a hidden element (avoids camera conflict)
+
             if (!fileQrDecoder) {
-                // html5Qrcode needs an element in the DOM; we reuse preview-box safely here
                 fileQrDecoder = new Html5Qrcode("preview-box");
             }
- 
+
             try {
                 const decodedText = await fileQrDecoder.scanFile(selectedFile, /* showImage */ false);
                 setStatus('success', 'QR decoded! Processing…');
@@ -363,21 +428,20 @@
                 setStatus('error', 'Could not read QR. Use a clearer image.');
             }
         }
- 
-        // ── Server call ────────────────────────────────────────
+
         async function process(val) {
             if (!val || !val.trim()) {
                 setStatus('error', 'Empty QR value — scan again.');
                 return;
             }
- 
+
             const token = localStorage.getItem("token");
             if (!token) {
                 alert("Session expired. Please log in again.");
                 window.location.href = "studentlogin.html";
                 return;
             }
- 
+
             try {
                 const res = await fetch("http://localhost:5000/api/transactions/issue", {
                     method: "POST",
@@ -387,7 +451,7 @@
                     },
                     body: JSON.stringify({ qr_code: val })
                 });
- 
+
                 const data = await res.json();
                 alert(data.message || "Transaction processed.");
                 if (data.success) window.location.href = "dashboard.html";
@@ -397,35 +461,34 @@
                 setStatus('error', 'Server unreachable. Is the backend running?');
             }
         }
- 
-        // ── UI helpers ─────────────────────────────────────────
+
         function setStatus(type, msg) {
             const bar = document.getElementById('status-bar');
             const dot = document.getElementById('status-dot');
             const txt = document.getElementById('status-msg');
- 
+
             bar.className = 'status-' + type;
             dot.className = 'dot dot-' + type;
             txt.textContent = msg;
         }
- 
+
         function showPlaceholder(msg) {
             document.getElementById('placeholder-text').classList.remove('hidden');
             document.getElementById('placeholder-msg').textContent = msg;
         }
- 
+
         function hidePlaceholder() {
             document.getElementById('placeholder-text').classList.add('hidden');
         }
- 
+
         function setCameraBtn(state) {
             const btn = document.getElementById('camera-toggle-btn');
             if (state === 'start') {
-                btn.textContent  = 'Start Camera';
-                btn.className    = 'w-full bg-emerald-700 text-white py-3 rounded-xl font-bold hover:bg-emerald-900 transition';
+                btn.textContent = 'Start Camera';
+                btn.className   = 'btn-primary w-full py-3 rounded-xl font-bold uppercase tracking-widest text-sm';
             } else {
-                btn.textContent  = 'Stop Camera';
-                btn.className    = 'w-full bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-800 transition';
+                btn.textContent = 'Stop Camera';
+                btn.className   = 'btn-stop w-full py-3 rounded-xl font-bold uppercase tracking-widest text-sm';
             }
         }
     </script>

@@ -22,9 +22,179 @@
         #ai-body::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
         #ai-body::-webkit-scrollbar-thumb { background: #b08d44; border-radius: 4px; }
         #ai-body::-webkit-scrollbar-thumb:hover { background: #d4af5a; }
+
+        /* ── NOTIFICATION TOAST SYSTEM ── */
+        #notification-container {
+            position: fixed;
+            top: 1.25rem;
+            right: 1.25rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            pointer-events: none;
+        }
+        .toast {
+            pointer-events: all;
+            min-width: 320px;
+            max-width: 400px;
+            border-radius: 14px;
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.85rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.22), 0 1.5px 6px rgba(0,0,0,0.10);
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.42s cubic-bezier(.4,0,.2,1), opacity 0.38s ease;
+            border-left: 4px solid transparent;
+        }
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        .toast.toast-error {
+            background: #1c0a0a;
+            border-left-color: #ef4444;
+            color: #fef2f2;
+        }
+        .toast.toast-warning {
+            background: #1c1200;
+            border-left-color: #f59e0b;
+            color: #fffbeb;
+        }
+        .toast.toast-success {
+            background: #061208;
+            border-left-color: #22c55e;
+            color: #f0fdf4;
+        }
+        .toast-icon {
+            font-size: 1.3rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .toast-content { flex: 1; }
+        .toast-title {
+            font-weight: 800;
+            font-size: 0.82rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 0.2rem;
+        }
+        .toast-msg {
+            font-size: 0.78rem;
+            opacity: 0.82;
+            line-height: 1.45;
+            font-weight: 500;
+        }
+        .toast-amount {
+            font-family: monospace;
+            font-size: 1rem;
+            font-weight: 900;
+            color: #ef4444;
+            display: block;
+            margin-top: 0.3rem;
+            letter-spacing: 0.06em;
+        }
+        .toast-close {
+            background: none;
+            border: none;
+            color: inherit;
+            opacity: 0.45;
+            cursor: pointer;
+            font-size: 1.1rem;
+            line-height: 1;
+            padding: 0;
+            margin-left: 0.25rem;
+            flex-shrink: 0;
+            transition: opacity 0.2s;
+        }
+        .toast-close:hover { opacity: 1; }
+
+        /* Progress bar under toast */
+        .toast-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            border-radius: 0 0 14px 14px;
+            width: 100%;
+            transform-origin: left;
+            animation: shrink-bar linear forwards;
+        }
+        .toast { position: relative; overflow: hidden; }
+        .toast-error .toast-progress   { background: #ef4444; }
+        .toast-warning .toast-progress { background: #f59e0b; }
+        .toast-success .toast-progress { background: #22c55e; }
+
+        @keyframes shrink-bar {
+            from { transform: scaleX(1); }
+            to   { transform: scaleX(0); }
+        }
+
+        /* ── OVERDUE ALERT BANNER (persistent, top of main) ── */
+        #overdue-banner {
+            display: none;
+            align-items: center;
+            gap: 0.85rem;
+            background: linear-gradient(90deg, #3b0a0a 0%, #1c0505 100%);
+            border: 1px solid #7f1d1d;
+            border-left: 5px solid #ef4444;
+            border-radius: 12px;
+            padding: 0.9rem 1.25rem;
+            margin-bottom: 1.5rem;
+            color: #fef2f2;
+            box-shadow: 0 4px 18px rgba(239,68,68,0.18);
+            animation: pulse-border 2.2s ease-in-out infinite;
+        }
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 4px 18px rgba(239,68,68,0.18); }
+            50%       { box-shadow: 0 4px 28px rgba(239,68,68,0.42); }
+        }
+        #overdue-banner.show { display: flex; }
+        .banner-icon { font-size: 1.5rem; flex-shrink: 0; }
+        .banner-content { flex: 1; }
+        .banner-title {
+            font-weight: 900;
+            font-size: 0.8rem;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: #fca5a5;
+            margin-bottom: 0.15rem;
+        }
+        .banner-msg {
+            font-size: 0.8rem;
+            color: #fecaca;
+            font-weight: 500;
+        }
+        .banner-amount {
+            font-family: monospace;
+            font-weight: 900;
+            font-size: 1.15rem;
+            color: #ef4444;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        #banner-close {
+            background: none;
+            border: 1px solid #7f1d1d;
+            color: #fca5a5;
+            border-radius: 6px;
+            padding: 0.25rem 0.6rem;
+            font-size: 0.7rem;
+            cursor: pointer;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        #banner-close:hover { background: #7f1d1d44; }
     </style>
 </head>
 <body class="bg-[#E2D6A4] text-slate-800 min-h-screen flex flex-col font-sans antialiased">
+
+    <!-- ── NOTIFICATION TOAST CONTAINER ── -->
+    <div id="notification-container"></div>
  
     <nav class="bg-slate-950 text-white p-5 shadow-md border-b-4 border-ssuet-gold relative z-10">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
@@ -40,6 +210,26 @@
                 </div>
             </div>
             <div class="flex items-center gap-6 text-sm">
+                <!-- Bell icon with badge -->
+                <div class="relative hidden sm:block">
+                    <button id="notif-bell" onclick="toggleNotifPanel()" class="relative p-2 rounded-lg border border-slate-700 text-slate-400 hover:text-ssuet-gold hover:border-ssuet-gold transition-all duration-200" title="Notifications">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                        </svg>
+                        <span id="notif-badge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-red-600 text-white text-[9px] font-black rounded-full flex items-center justify-center border border-slate-950">!</span>
+                    </button>
+                    <!-- Dropdown notification panel -->
+                    <div id="notif-panel" class="hidden absolute right-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+                            <span class="text-xs font-black text-white uppercase tracking-widest">Notifications</span>
+                            <button onclick="markAllRead()" class="text-[10px] text-ssuet-gold hover:underline font-bold">Mark all read</button>
+                        </div>
+                        <div id="notif-list" class="divide-y divide-slate-800 max-h-64 overflow-y-auto">
+                            <div class="px-4 py-6 text-center text-slate-500 text-xs">No notifications</div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="text-right hidden sm:block">
                     <span id="user-display" class="block font-bold text-white">Welcome, Student</span>
                     <span id="id-display" class="block text-[11px] text-slate-400 font-mono">ID: --</span>
@@ -52,6 +242,17 @@
     </nav>
  
     <main class="max-w-7xl mx-auto p-4 md:p-8 flex-1 w-full">
+
+        <!-- ── PERSISTENT OVERDUE BANNER ── -->
+        <div id="overdue-banner" role="alert">
+            <div class="banner-icon">🚨</div>
+            <div class="banner-content">
+                <div class="banner-title">Outstanding Fine — Action Required</div>
+                <div class="banner-msg" id="banner-msg-text">You have an unpaid library fine. Borrowing is suspended until cleared.</div>
+            </div>
+            <div class="banner-amount" id="banner-fine-amount">PKR 0.00</div>
+            <button id="banner-close" onclick="dismissBanner()">Dismiss</button>
+        </div>
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div class="bg-white p-5 rounded-xl border border-slate-300/40 shadow-md flex items-center justify-between">
@@ -144,7 +345,6 @@
                     </h3>
                     <p class="text-xs text-slate-400 mt-0.5">Custom index suggestions tailored to your computer science matrix.</p>
                 </div>
-                <!-- Height is set to 280px to hold multiple items and showcase the auto-scroll smoothly [2] -->
                 <div id="ai-body" class="space-y-3 flex-1 overflow-y-auto max-h-[280px] pr-1"></div>
             </aside>
         </div>
@@ -157,6 +357,132 @@
     </footer>
  
 <script>
+    // ── NOTIFICATION STORE ────────────────────────────────────────
+    const notifStore = [];
+    let notifPanelOpen = false;
+
+    function pushNotification({ type = 'error', title, message, amount = null, duration = 7000 }) {
+        // Add to store
+        const id = Date.now();
+        notifStore.unshift({ id, type, title, message, amount, read: false });
+        renderNotifPanel();
+        updateBadge();
+
+        // Build toast
+        const container = document.getElementById('notification-container');
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.dataset.id = id;
+
+        const amountHTML = amount != null
+            ? `<span class="toast-amount">${amount}</span>`
+            : '';
+
+        toast.innerHTML = `
+            <div class="toast-icon">${type === 'error' ? '🚨' : type === 'warning' ? '⚠️' : '✅'}</div>
+            <div class="toast-content">
+                <div class="toast-title">${title}</div>
+                <div class="toast-msg">${message}${amountHTML}</div>
+            </div>
+            <button class="toast-close" onclick="dismissToast(${id})" title="Dismiss">✕</button>
+            <div class="toast-progress" style="animation-duration: ${duration}ms;"></div>
+        `;
+        container.appendChild(toast);
+
+        // Trigger slide-in
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => toast.classList.add('show'));
+        });
+
+        // Auto-dismiss
+        const timer = setTimeout(() => dismissToast(id), duration);
+        toast._timer = timer;
+    }
+
+    function dismissToast(id) {
+        const toast = document.querySelector(`.toast[data-id="${id}"]`);
+        if (!toast) return;
+        clearTimeout(toast._timer);
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 450);
+    }
+
+    function renderNotifPanel() {
+        const list = document.getElementById('notif-list');
+        if (!list) return;
+        if (notifStore.length === 0) {
+            list.innerHTML = `<div class="px-4 py-6 text-center text-slate-500 text-xs">No notifications</div>`;
+            return;
+        }
+        list.innerHTML = notifStore.map(n => `
+            <div class="flex items-start gap-3 px-4 py-3 ${n.read ? 'opacity-50' : ''} hover:bg-slate-800/50 transition-colors cursor-default" onclick="markRead(${n.id})">
+                <span class="text-base mt-0.5 flex-shrink-0">${n.type === 'error' ? '🚨' : n.type === 'warning' ? '⚠️' : '✅'}</span>
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs font-black uppercase tracking-wide ${n.type === 'error' ? 'text-red-400' : n.type === 'warning' ? 'text-amber-400' : 'text-emerald-400'}">${n.title}</div>
+                    <div class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">${n.message}</div>
+                    ${n.amount ? `<div class="text-xs font-black text-red-400 font-mono mt-0.5">${n.amount}</div>` : ''}
+                </div>
+                ${!n.read ? `<span class="w-2 h-2 rounded-full bg-red-500 mt-1.5 flex-shrink-0"></span>` : ''}
+            </div>
+        `).join('');
+    }
+
+    function markRead(id) {
+        const n = notifStore.find(x => x.id === id);
+        if (n) { n.read = true; renderNotifPanel(); updateBadge(); }
+    }
+
+    function markAllRead() {
+        notifStore.forEach(n => n.read = true);
+        renderNotifPanel();
+        updateBadge();
+    }
+
+    function updateBadge() {
+        const badge = document.getElementById('notif-badge');
+        const unread = notifStore.filter(n => !n.read).length;
+        if (unread > 0) {
+            badge.textContent = unread > 9 ? '9+' : unread;
+            badge.classList.remove('hidden');
+            badge.classList.add('flex');
+        } else {
+            badge.classList.add('hidden');
+            badge.classList.remove('flex');
+        }
+    }
+
+    function toggleNotifPanel() {
+        const panel = document.getElementById('notif-panel');
+        notifPanelOpen = !notifPanelOpen;
+        panel.classList.toggle('hidden', !notifPanelOpen);
+        if (notifPanelOpen) markAllRead();
+    }
+
+    // Close panel if clicking outside
+    document.addEventListener('click', (e) => {
+        const panel = document.getElementById('notif-panel');
+        const bell  = document.getElementById('notif-bell');
+        if (notifPanelOpen && !panel.contains(e.target) && !bell.contains(e.target)) {
+            panel.classList.add('hidden');
+            notifPanelOpen = false;
+        }
+    });
+
+    // ── BANNER ────────────────────────────────────────────────────
+    function showOverdueBanner(amount) {
+        const banner     = document.getElementById('overdue-banner');
+        const bannerAmt  = document.getElementById('banner-fine-amount');
+        const bannerMsg  = document.getElementById('banner-msg-text');
+        bannerAmt.textContent = `PKR ${parseFloat(amount).toFixed(2)}`;
+        bannerMsg.textContent = 'You have an unpaid library fine. New borrowing is suspended until the balance is cleared at the front desk.';
+        banner.classList.add('show');
+    }
+
+    function dismissBanner() {
+        document.getElementById('overdue-banner').classList.remove('show');
+    }
+
+    // ── MAIN DASHBOARD FETCH ──────────────────────────────────────
     async function fetchDashboard() {
         const token = localStorage.getItem("token") || localStorage.getItem("session_token");
         if (!token) { window.location.href = "index.html"; return; }
@@ -182,15 +508,32 @@
             tbody.innerHTML = "";
             aiBody.innerHTML = "";
  
-            // ── FINE DISPLAY ──────────────────────────────────────────────
+            // ── FINE DISPLAY & NOTIFICATIONS ─────────────────────
             const fineAmount = parseFloat(data.unpaid_balance) || 0;
             fineEl.textContent = `PKR ${fineAmount.toFixed(2)}`;
  
             if (fineAmount > 0) {
+                // Style the fine card
                 fineEl.className       = "text-2xl font-extrabold text-red-600 mt-1 animate-pulse";
                 fineCard.className     = "bg-red-50 p-5 rounded-xl border border-red-200 shadow-md flex items-center justify-between transition-all duration-300";
                 fineBadge.className    = "p-2.5 bg-red-600 text-white rounded-lg text-xs font-bold border border-red-700 shadow-sm uppercase tracking-wider";
                 fineBadge.textContent  = "Overdue";
+
+                // Show persistent banner
+                showOverdueBanner(fineAmount);
+
+                // Determine severity for toast
+                const isCritical = fineAmount >= 500;
+                pushNotification({
+                    type:     'error',
+                    title:    isCritical ? 'Critical Fine — Account Locked' : 'Overdue Fine Detected',
+                    message:  isCritical
+                        ? 'Your account is locked. Visit the library desk immediately to restore borrowing access.'
+                        : 'An outstanding fine is recorded on your account. Please settle at the front desk.',
+                    amount:   `PKR ${fineAmount.toFixed(2)}`,
+                    duration: 9000
+                });
+
             } else {
                 fineEl.className       = "text-2xl font-extrabold text-emerald-700 mt-1";
                 fineCard.className     = "bg-white p-5 rounded-xl border border-slate-300/40 shadow-md flex items-center justify-between transition-all duration-300";
@@ -198,10 +541,11 @@
                 fineBadge.textContent  = "Clear";
             }
  
-            // Save currently issued book titles to filter them from recommendations [2]
-            const issuedTitles = [];
- 
-            // ── LOANS TABLE ───────────────────────────────────────────────
+            // ── OVERDUE LOAN DETECTION ────────────────────────────
+            const issuedTitles  = [];
+            let   overdueCount  = 0;
+
+            // ── LOANS TABLE ───────────────────────────────────────
             if (data.loans && data.loans.length > 0) {
                 loanCounter.textContent = data.loans.length;
  
@@ -211,25 +555,28 @@
                     const [y, m, d] = clean.split('-');
                     return `${d}/${m}/${y}`;
                 };
+
+                const today = new Date(); today.setHours(0,0,0,0);
  
                 data.loans.forEach(loan => {
-                    const today = new Date(); today.setHours(0,0,0,0);
                     const due   = new Date(loan.due_date);
                     const isOverdue = due < today;
- 
-                    // Track issued titles
-                    if (loan.title) {
-                        issuedTitles.push(loan.title.toLowerCase().trim());
-                    }
+
+                    if (isOverdue) overdueCount++;
+                    if (loan.title) issuedTitles.push(loan.title.toLowerCase().trim());
  
                     const badgeClass = isOverdue
                         ? "bg-red-50 text-red-700 border border-red-200/60 font-black animate-pulse"
                         : "bg-amber-50 text-amber-800 border border-amber-200/50";
+
+                    const overdueMark = isOverdue
+                        ? `<span class="ml-1.5 text-[9px] font-black uppercase tracking-widest text-red-500">● OVERDUE</span>`
+                        : '';
  
                     tbody.innerHTML += `
                         <tr class="text-sm hover:bg-slate-50/80 transition-colors">
                             <td class="py-4 font-mono font-bold text-xs text-slate-400 tracking-tight">${loan.transaction_id}</td>
-                            <td class="py-4 font-bold text-slate-800">${loan.title || 'Unknown Resource'}</td>
+                            <td class="py-4 font-bold text-slate-800">${loan.title || 'Unknown Resource'}${overdueMark}</td>
                             <td class="py-4 text-slate-500 font-medium">${formatDate(loan.issue_date)}</td>
                             <td class="py-4 text-right">
                                 <span class="inline-block px-2.5 py-1 rounded-md text-xs font-bold ${badgeClass}">
@@ -238,6 +585,18 @@
                             </td>
                         </tr>`;
                 });
+
+                // Fire overdue book notification after table render
+                if (overdueCount > 0 && fineAmount === 0) {
+                    // Fine not yet calculated but books are overdue
+                    pushNotification({
+                        type:     'warning',
+                        title:    `${overdueCount} Overdue Book${overdueCount > 1 ? 's' : ''}`,
+                        message:  `${overdueCount > 1 ? 'Multiple books are' : 'A book is'} past the return deadline. Return immediately to avoid daily fines.`,
+                        duration: 8000
+                    });
+                }
+
             } else {
                 loanCounter.textContent = "0";
                 tbody.innerHTML = `
@@ -248,20 +607,19 @@
                     </tr>`;
             }
  
-            // ── AI RECOMMENDATIONS (Filtered & Expanded) ───────────────────
+            // ── AI RECOMMENDATIONS ────────────────────────────────
             const rawRecommendations = data.recommendations && data.recommendations.length > 0
                 ? data.recommendations
                 : [
-                    { title: "Introduction to Algorithms",       author: "CLRS",                 tag: "Algorithms" },
-                    { title: "Clean Code: A Handbook of Agile...", author: "Robert C. Martin",     tag: "Software Eng" },
-                    { title: "Web Development with Node and Express", author: "Ethan Brown",       tag: "Backend Dev" },
-                    { title: "Modern Operating Systems",         author: "Andrew S. Tanenbaum",  tag: "Core Systems" },
-                    { title: "Database System Concepts",         author: "Silberschatz, Korth",  tag: "Databases" },
-                    { title: "Computer Networking: A Top-Down Approach", author: "Kurose, Ross", tag: "Networking" },
-                    { title: "Design Patterns: Elements of Reusable...", author: "Erich Gamma",    tag: "Design" }
+                    { title: "Introduction to Algorithms",              author: "CLRS",                 tag: "Algorithms"   },
+                    { title: "Clean Code: A Handbook of Agile...",       author: "Robert C. Martin",     tag: "Software Eng" },
+                    { title: "Web Development with Node and Express",    author: "Ethan Brown",          tag: "Backend Dev"  },
+                    { title: "Modern Operating Systems",                 author: "Andrew S. Tanenbaum",  tag: "Core Systems" },
+                    { title: "Database System Concepts",                 author: "Silberschatz, Korth",  tag: "Databases"    },
+                    { title: "Computer Networking: A Top-Down Approach", author: "Kurose, Ross",         tag: "Networking"   },
+                    { title: "Design Patterns: Elements of Reusable...", author: "Erich Gamma",          tag: "Design"       }
                   ];
  
-            // Filter out recommendations that are already issued to this student [2]
             const filteredRecommendations = rawRecommendations.filter(book => {
                 const bookTitle = (book.title || "").toLowerCase().trim();
                 return !issuedTitles.includes(bookTitle);
@@ -280,8 +638,6 @@
                             <p class="text-[11px] text-slate-400 font-semibold">By ${book.author || 'Academic Faculty'}</p>
                         </div>`;
                 });
-                
-                // Initialize the auto-scrolling engine [2]
                 initAutoScroll();
             } else {
                 aiBody.innerHTML = `
@@ -292,30 +648,28 @@
  
         } catch(e) {
             console.error("Dashboard Sync Error:", e);
+            pushNotification({
+                type:     'warning',
+                title:    'Sync Failed',
+                message:  'Could not reach the library server. Your data may be outdated.',
+                duration: 6000
+            });
         }
     }
  
-    // ── INFINITE AUTO-SCROLLING ENGINE ────────────────────────────
+    // ── AUTO-SCROLLING ENGINE ─────────────────────────────────────
     function initAutoScroll() {
         const aiBody = document.getElementById("ai-body");
         if (!aiBody) return;
-
         let isHovered = false;
         aiBody.addEventListener("mouseenter", () => isHovered = true);
         aiBody.addEventListener("mouseleave", () => isHovered = false);
-
         let lastScrollTop = -1;
-
-        // Smooth vertical scroll loop ticking every 45ms [2]
         setInterval(() => {
             if (isHovered) return;
-
-            // Increment vertical scroll offset
             aiBody.scrollTop += 1;
-
-            // Seamless boundary detection [2]
             if (aiBody.scrollTop === lastScrollTop || aiBody.scrollTop >= (aiBody.scrollHeight - aiBody.clientHeight)) {
-                aiBody.scrollTop = 0; // Return to the top and restart loop
+                aiBody.scrollTop = 0;
             }
             lastScrollTop = aiBody.scrollTop;
         }, 45);

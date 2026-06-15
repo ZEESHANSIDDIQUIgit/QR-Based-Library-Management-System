@@ -8,12 +8,12 @@ const app = express();
 // 1. UNIFIED DYNAMIC CORS CONFIGURATION
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin) return callback(null, true); // Allows file://, mobile, or postman
+        if (!origin) return callback(null, true);
         const allowed = [
             'http://localhost:3000',
             'http://127.0.0.1:3000',
             'http://localhost:5500',
-            'http://127.0.0.1:5500' // VS Code Live Server
+            'http://127.0.0.1:5500'
         ];
         if (allowed.includes(origin)) return callback(null, true);
         return callback(new Error('Not allowed by CORS'));
@@ -199,6 +199,7 @@ app.post('/api/transactions/return', authenticateToken, async (req, res) => {
  
         await db.query("UPDATE transactions SET status='RETURNED', return_date=CURDATE(), fine_amount=? WHERE transaction_id=?", [fine, txn[0].transaction_id]);
         await db.query("UPDATE books SET availability='AVAILABLE' WHERE book_id=?", [books[0].book_id]);
+        await logSystemAction("BOOK_RETURN", txn[0].student_id, `Returned: ${books[0].title}. Fine: PKR ${fine}`);
         
         res.json({ success: true, message: `Returned. Fine: PKR ${fine}` });
     } catch (err) { 
@@ -210,13 +211,35 @@ app.post('/api/transactions/return', authenticateToken, async (req, res) => {
 app.get('/api/transactions/active', authenticateToken, async (req, res) => {
     try {
         const uid = req.user.id;
-        const [loans] = await db.query("SELECT t.*, b.title FROM transactions t JOIN books b ON t.book_id=b.book_id WHERE t.student_id=? AND t.status='ISSUED'", [uid]);
-        const [fine] = await db.query("SELECT SUM(fine_amount) as total FROM transactions WHERE student_id=?", [uid]);
+
+        const [loans] = await db.query(
+            "SELECT t.*, b.title FROM transactions t JOIN books b ON t.book_id=b.book_id WHERE t.student_id=? AND t.status='ISSUED'",
+            [uid]
+        );
+
+        // Sum fines from already-returned transactions
+        const [returnedFine] = await db.query(
+            "SELECT COALESCE(SUM(fine_amount), 0) as total FROM transactions WHERE student_id=? AND status='RETURNED'",
+            [uid]
+        );
+
+        // Calculate live accruing fine on currently overdue issued books (PKR 50/day)
+        const [overdueFine] = await db.query(`
+            SELECT COALESCE(
+                SUM(GREATEST(DATEDIFF(CURDATE(), due_date), 0) * 50), 0
+            ) as total
+            FROM transactions
+            WHERE student_id=? AND status='ISSUED' AND due_date < CURDATE()
+        `, [uid]);
+
+        const unpaid_balance = parseFloat(returnedFine[0].total) + parseFloat(overdueFine[0].total);
+
+        // Fetch top books for AI recommendations (increased limit for smooth scroll)
+        const [recs] = await db.query(
+            "SELECT title, author FROM books ORDER BY borrow_count DESC LIMIT 15"
+        );
         
-        // INCRESED LIMIT TO 15: Fetches more recommended books for smooth scrolling [2]
-        const [recs] = await db.query("SELECT title, author FROM books ORDER BY borrow_count DESC LIMIT 15");
-        
-        res.json({ success: true, loans, unpaid_balance: fine[0].total || 0, recommendations: recs });
+        res.json({ success: true, loans, unpaid_balance, recommendations: recs });
     } catch (err) { 
         console.error("ACTIVE TRANSACTIONS ERROR:", err);
         res.status(500).json({ success: false, message: "Dashboard error." }); 
@@ -230,7 +253,14 @@ app.get('/api/admin/metrics', authenticateToken, requireLibrarian, async (req, r
     try {
         const [issued]    = await db.query("SELECT COUNT(*) as c FROM transactions WHERE status='ISSUED'");
         const [def]       = await db.query("SELECT COUNT(*) as c FROM transactions WHERE status='ISSUED' AND due_date < CURDATE()");
-        const [fines]     = await db.query("SELECT SUM(fine_amount) as c FROM transactions");
+
+        // Sum returned fines + live accruing overdue fines on active loans
+        const [returnedFines] = await db.query("SELECT COALESCE(SUM(fine_amount), 0) as c FROM transactions WHERE status='RETURNED'");
+        const [liveFines]     = await db.query(`
+            SELECT COALESCE(SUM(GREATEST(DATEDIFF(CURDATE(), due_date), 0) * 50), 0) as c
+            FROM transactions WHERE status='ISSUED' AND due_date < CURDATE()
+        `);
+        const fines = [{ c: parseFloat(returnedFines[0].c) + parseFloat(liveFines[0].c) }];
  
         const [inventory] = await db.query("SELECT COUNT(*) as c FROM books WHERE availability='AVAILABLE'");
  
@@ -306,15 +336,18 @@ app.post('/api/admin/clear-fine', authenticateToken, requireLibrarian, async (re
         return res.status(400).json({ success: false, message: "student_id is required." });
     }
     try {
-        const [result] = await db.query(
+        // Clear stored fines on returned transactions
+        await db.query(
             "UPDATE transactions SET fine_amount = 0 WHERE student_id = ? AND fine_amount > 0",
             [student_id]
         );
- 
-        if (result.affectedRows === 0) {
-            return res.json({ success: false, message: "No outstanding fines found for this student." });
-        }
- 
+
+        // Reset due_date on active issued loans to today + 7 days (wipes live overdue fine)
+        await db.query(
+            "UPDATE transactions SET due_date = DATE_ADD(CURDATE(), INTERVAL 7 DAY) WHERE student_id = ? AND status = 'ISSUED'",
+            [student_id]
+        );
+
         await logSystemAction("FINE_CLEARED", student_id, `Admin cleared all fines for student ${student_id}`);
         res.json({ success: true, message: `Fines cleared for student ${student_id}.` });
     } catch (err) {
