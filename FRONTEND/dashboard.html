@@ -68,6 +68,11 @@
             border-left-color: #22c55e;
             color: #f0fdf4;
         }
+        .toast.toast-info {
+            background: #0c1628;
+            border-left-color: #3b82f6;
+            color: #eff6ff;
+        }
         .toast-icon {
             font-size: 1.3rem;
             flex-shrink: 0;
@@ -126,6 +131,7 @@
         .toast-error .toast-progress   { background: #ef4444; }
         .toast-warning .toast-progress { background: #f59e0b; }
         .toast-success .toast-progress { background: #22c55e; }
+        .toast-info .toast-progress    { background: #3b82f6; }
 
         @keyframes shrink-bar {
             from { transform: scaleX(1); }
@@ -189,6 +195,10 @@
             flex-shrink: 0;
         }
         #banner-close:hover { background: #7f1d1d44; }
+
+        /* Notification panel styles */
+        .notif-unread { background: rgba(176, 141, 68, 0.08); }
+        .notif-read { opacity: 0.6; }
     </style>
 </head>
 <body class="bg-[#E2D6A4] text-slate-800 min-h-screen flex flex-col font-sans antialiased">
@@ -343,7 +353,7 @@
                         <span class="w-1 h-5 bg-ssuet-gold rounded-full"></span>
                         AI Recommender Module
                     </h3>
-                    <p class="text-xs text-slate-400 mt-0.5">Custom index suggestions tailored to your computer science matrix.</p>
+                    <p class="text-xs text-slate-400 mt-0.5">Personalized recommendations based on your borrowing history and department.</p>
                 </div>
                 <div id="ai-body" class="space-y-3 flex-1 overflow-y-auto max-h-[280px] pr-1"></div>
             </aside>
@@ -357,18 +367,22 @@
     </footer>
  
 <script>
+    // ── AUTH CHECK ────────────────────────────────────────────────
+    const token = localStorage.getItem("token");
+    if (!token) {
+        window.location.href = "studentlogin.html";
+    }
+
     // ── NOTIFICATION STORE ────────────────────────────────────────
     const notifStore = [];
     let notifPanelOpen = false;
 
     function pushNotification({ type = 'error', title, message, amount = null, duration = 7000 }) {
-        // Add to store
         const id = Date.now();
         notifStore.unshift({ id, type, title, message, amount, read: false });
         renderNotifPanel();
         updateBadge();
 
-        // Build toast
         const container = document.getElementById('notification-container');
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
@@ -378,8 +392,10 @@
             ? `<span class="toast-amount">${amount}</span>`
             : '';
 
+        const iconMap = { error: '🚨', warning: '⚠️', success: '✅', info: 'ℹ️' };
+
         toast.innerHTML = `
-            <div class="toast-icon">${type === 'error' ? '🚨' : type === 'warning' ? '⚠️' : '✅'}</div>
+            <div class="toast-icon">${iconMap[type] || 'ℹ️'}</div>
             <div class="toast-content">
                 <div class="toast-title">${title}</div>
                 <div class="toast-msg">${message}${amountHTML}</div>
@@ -389,12 +405,10 @@
         `;
         container.appendChild(toast);
 
-        // Trigger slide-in
         requestAnimationFrame(() => {
             requestAnimationFrame(() => toast.classList.add('show'));
         });
 
-        // Auto-dismiss
         const timer = setTimeout(() => dismissToast(id), duration);
         toast._timer = timer;
     }
@@ -415,10 +429,10 @@
             return;
         }
         list.innerHTML = notifStore.map(n => `
-            <div class="flex items-start gap-3 px-4 py-3 ${n.read ? 'opacity-50' : ''} hover:bg-slate-800/50 transition-colors cursor-default" onclick="markRead(${n.id})">
-                <span class="text-base mt-0.5 flex-shrink-0">${n.type === 'error' ? '🚨' : n.type === 'warning' ? '⚠️' : '✅'}</span>
+            <div class="flex items-start gap-3 px-4 py-3 ${n.read ? 'notif-read' : 'notif-unread'} hover:bg-slate-800/50 transition-colors cursor-pointer" onclick="markRead(${n.id})">
+                <span class="text-base mt-0.5 flex-shrink-0">${n.type === 'error' ? '🚨' : n.type === 'warning' ? '⚠️' : n.type === 'success' ? '✅' : 'ℹ️'}</span>
                 <div class="flex-1 min-w-0">
-                    <div class="text-xs font-black uppercase tracking-wide ${n.type === 'error' ? 'text-red-400' : n.type === 'warning' ? 'text-amber-400' : 'text-emerald-400'}">${n.title}</div>
+                    <div class="text-xs font-black uppercase tracking-wide ${n.type === 'error' ? 'text-red-400' : n.type === 'warning' ? 'text-amber-400' : n.type === 'success' ? 'text-emerald-400' : 'text-blue-400'}">${n.title}</div>
                     <div class="text-[11px] text-slate-400 mt-0.5 leading-relaxed">${n.message}</div>
                     ${n.amount ? `<div class="text-xs font-black text-red-400 font-mono mt-0.5">${n.amount}</div>` : ''}
                 </div>
@@ -458,7 +472,6 @@
         if (notifPanelOpen) markAllRead();
     }
 
-    // Close panel if clicking outside
     document.addEventListener('click', (e) => {
         const panel = document.getElementById('notif-panel');
         const bell  = document.getElementById('notif-bell');
@@ -474,7 +487,7 @@
         const bannerAmt  = document.getElementById('banner-fine-amount');
         const bannerMsg  = document.getElementById('banner-msg-text');
         bannerAmt.textContent = `PKR ${parseFloat(amount).toFixed(2)}`;
-        bannerMsg.textContent = 'You have an unpaid library fine. New borrowing is suspended until the balance is cleared at the front desk.';
+        bannerMsg.textContent = 'You have an unpaid library fine. New borrowing is suspended until the balance is cleared.';
         banner.classList.add('show');
     }
 
@@ -482,21 +495,57 @@
         document.getElementById('overdue-banner').classList.remove('show');
     }
 
-    // ── MAIN DASHBOARD FETCH ──────────────────────────────────────
-    async function fetchDashboard() {
-        const token = localStorage.getItem("token") || localStorage.getItem("session_token");
-        if (!token) { window.location.href = "index.html"; return; }
- 
-        const savedName = localStorage.getItem("name");
-        const savedStudentId = localStorage.getItem("student_id");
-        if (savedName) document.getElementById("user-display").textContent = `Welcome, ${savedName}`;
-        if (savedStudentId) document.getElementById("id-display").textContent = `ID: ${savedStudentId}`;
- 
+    // ── FETCH NOTIFICATIONS FROM SERVER ───────────────────────────
+    async function fetchServerNotifications() {
         try {
-            const res = await fetch("http://localhost:5000/api/transactions/active", {
+            const res = await fetch("http://localhost:5000/api/notifications", {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             const data = await res.json();
+            if (data.success && data.notifications) {
+                data.notifications.forEach(n => {
+                    pushNotification({
+                        type: n.type === 'FINE_ALERT' ? 'error' : n.type === 'DUE_REMINDER' ? 'warning' : 'info',
+                        title: n.title,
+                        message: n.message,
+                        duration: 8000
+                    });
+                });
+            }
+        } catch (e) {
+            console.error("Failed to fetch notifications:", e);
+        }
+    }
+
+    // ── MAIN DASHBOARD FETCH ──────────────────────────────────────
+    async function fetchDashboard() {
+        const savedName = localStorage.getItem("user_name") || localStorage.getItem("name") || "Student";
+        const savedStudentId = localStorage.getItem("user_id") || localStorage.getItem("student_id") || "--";
+        
+        document.getElementById("user-display").textContent = `Welcome, ${savedName}`;
+        document.getElementById("id-display").textContent = `ID: ${savedStudentId}`;
+ 
+        try {
+            // NEW API: /api/student/dashboard instead of /api/transactions/active
+            const res = await fetch("http://localhost:5000/api/student/dashboard", {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            
+            if (res.status === 401) {
+                pushNotification({
+                    type: 'error',
+                    title: 'Session Expired',
+                    message: 'Your session has expired. Please log in again.',
+                    duration: 5000
+                });
+                setTimeout(() => handleLogout(), 2000);
+                return;
+            }
+
+            const data = await res.json();
+            if (!data.success) {
+                throw new Error(data.message || "Failed to load dashboard");
+            }
  
             const tbody        = document.getElementById("loans-body");
             const aiBody       = document.getElementById("ai-body");
@@ -513,16 +562,13 @@
             fineEl.textContent = `PKR ${fineAmount.toFixed(2)}`;
  
             if (fineAmount > 0) {
-                // Style the fine card
                 fineEl.className       = "text-2xl font-extrabold text-red-600 mt-1 animate-pulse";
                 fineCard.className     = "bg-red-50 p-5 rounded-xl border border-red-200 shadow-md flex items-center justify-between transition-all duration-300";
                 fineBadge.className    = "p-2.5 bg-red-600 text-white rounded-lg text-xs font-bold border border-red-700 shadow-sm uppercase tracking-wider";
                 fineBadge.textContent  = "Overdue";
 
-                // Show persistent banner
                 showOverdueBanner(fineAmount);
 
-                // Determine severity for toast
                 const isCritical = fineAmount >= 500;
                 pushNotification({
                     type:     'error',
@@ -546,8 +592,8 @@
             let   overdueCount  = 0;
 
             // ── LOANS TABLE ───────────────────────────────────────
-            if (data.loans && data.loans.length > 0) {
-                loanCounter.textContent = data.loans.length;
+            if (data.active_loans && data.active_loans.length > 0) {
+                loanCounter.textContent = data.active_loans.length;
  
                 const formatDate = (dateStr) => {
                     if (!dateStr) return '---';
@@ -558,7 +604,7 @@
 
                 const today = new Date(); today.setHours(0,0,0,0);
  
-                data.loans.forEach(loan => {
+                data.active_loans.forEach(loan => {
                     const due   = new Date(loan.due_date);
                     const isOverdue = due < today;
 
@@ -586,9 +632,7 @@
                         </tr>`;
                 });
 
-                // Fire overdue book notification after table render
                 if (overdueCount > 0 && fineAmount === 0) {
-                    // Fine not yet calculated but books are overdue
                     pushNotification({
                         type:     'warning',
                         title:    `${overdueCount} Overdue Book${overdueCount > 1 ? 's' : ''}`,
@@ -611,13 +655,13 @@
             const rawRecommendations = data.recommendations && data.recommendations.length > 0
                 ? data.recommendations
                 : [
-                    { title: "Introduction to Algorithms",              author: "CLRS",                 tag: "Algorithms"   },
-                    { title: "Clean Code: A Handbook of Agile...",       author: "Robert C. Martin",     tag: "Software Eng" },
-                    { title: "Web Development with Node and Express",    author: "Ethan Brown",          tag: "Backend Dev"  },
-                    { title: "Modern Operating Systems",                 author: "Andrew S. Tanenbaum",  tag: "Core Systems" },
-                    { title: "Database System Concepts",                 author: "Silberschatz, Korth",  tag: "Databases"    },
-                    { title: "Computer Networking: A Top-Down Approach", author: "Kurose, Ross",         tag: "Networking"   },
-                    { title: "Design Patterns: Elements of Reusable...", author: "Erich Gamma",          tag: "Design"       }
+                    { title: "Introduction to Algorithms",              author: "CLRS",                 category_name: "Algorithms"   },
+                    { title: "Clean Code: A Handbook of Agile...",       author: "Robert C. Martin",     category_name: "Software Eng" },
+                    { title: "Web Development with Node and Express",    author: "Ethan Brown",          category_name: "Backend Dev"  },
+                    { title: "Modern Operating Systems",                 author: "Andrew S. Tanenbaum",  category_name: "Core Systems" },
+                    { title: "Database System Concepts",                 author: "Silberschatz, Korth",  category_name: "Databases"    },
+                    { title: "Computer Networking: A Top-Down Approach", author: "Kurose, Ross",         category_name: "Networking"   },
+                    { title: "Design Patterns: Elements of Reusable...", author: "Erich Gamma",          category_name: "Design"       }
                   ];
  
             const filteredRecommendations = rawRecommendations.filter(book => {
@@ -632,7 +676,7 @@
                             <div class="flex justify-between items-start gap-2">
                                 <h4 class="font-bold text-xs text-slate-200 group-hover:text-ssuet-gold transition-colors line-clamp-1">${book.title}</h4>
                                 <span class="text-[9px] uppercase font-mono font-extrabold bg-slate-800 text-ssuet-gold px-1.5 py-0.5 rounded border border-slate-700 shrink-0">
-                                    ${book.tag || 'AI Match'}
+                                    ${book.category_name || 'AI Match'}
                                 </span>
                             </div>
                             <p class="text-[11px] text-slate-400 font-semibold">By ${book.author || 'Academic Faculty'}</p>
@@ -644,6 +688,18 @@
                     <div class="py-8 text-center text-slate-500 text-xs">
                         No new recommendations available.
                     </div>`;
+            }
+
+            // ── SERVER NOTIFICATIONS ─────────────────────────────
+            if (data.notifications && data.notifications.length > 0) {
+                data.notifications.forEach(n => {
+                    pushNotification({
+                        type: n.type === 'FINE_ALERT' ? 'error' : n.type === 'DUE_REMINDER' ? 'warning' : n.type === 'BOOK_AVAILABLE' ? 'success' : 'info',
+                        title: n.title,
+                        message: n.message,
+                        duration: 8000
+                    });
+                });
             }
  
         } catch(e) {
@@ -677,13 +733,20 @@
  
     function handleLogout() {
         localStorage.removeItem('token');
-        localStorage.removeItem('session_token');
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('user_id');
+        localStorage.removeItem('user_name');
+        localStorage.removeItem('user_role');
+        localStorage.removeItem('user_department');
+        localStorage.removeItem('user_semester');
         localStorage.removeItem('name');
         localStorage.removeItem('student_id');
         window.location.href = 'index.html';
     }
  
+    // Initialize
     fetchDashboard();
+    fetchServerNotifications();
 </script>
 </body>
 </html>

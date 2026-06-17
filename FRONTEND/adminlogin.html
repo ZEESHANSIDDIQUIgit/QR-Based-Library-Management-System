@@ -68,12 +68,61 @@
             box-shadow: 0 4px 12px rgba(179, 146, 78, 0.2); transition: all 0.3s; margin-top: 10px;
         }
         .submit-btn:hover { background-color: #96793f; transform: translateY(-1px); }
+        .submit-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
         .back-link {
             display: flex; align-items: center; justify-content: center; gap: 8px;
             margin-top: 30px; color: #888; text-decoration: none; font-size: 12px;
             font-weight: bold; transition: color 0.2s;
         }
         .back-link:hover { color: #b3924e; }
+        .error-msg {
+            color: #e53e3e;
+            font-size: 12px;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #fff5f5;
+            border-radius: 6px;
+            border-left: 3px solid #e53e3e;
+            display: none;
+        }
+        .success-msg {
+            color: #38a169;
+            font-size: 12px;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #f0fff4;
+            border-radius: 6px;
+            border-left: 3px solid #38a169;
+            display: none;
+        }
+        .role-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .role-option {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .role-option:hover {
+            border-color: #b3924e;
+        }
+        .role-option.active {
+            border-color: #b3924e;
+            background: rgba(179, 146, 78, 0.1);
+            color: #b3924e;
+        }
     </style>
 </head>
 <body>
@@ -105,9 +154,17 @@
  
             <form id="adminLoginForm">
                 <div class="input-group">
+                    <label>SELECT ROLE</label>
+                    <div class="role-selector">
+                        <div class="role-option active" data-role="librarian" onclick="selectRole(this)">LIBRARIAN</div>
+                        <div class="role-option" data-role="admin" onclick="selectRole(this)">ADMIN</div>
+                    </div>
+                </div>
+
+                <div class="input-group">
                     <label>ADMINISTRATOR ACCESS ID</label>
                     <div class="input-container">
-                        <input type="text" id="adminId" placeholder="e.g., ADMIN-01" required>
+                        <input type="text" id="adminId" placeholder="e.g., LIB-001 or ADMIN-01" required>
                     </div>
                 </div>
  
@@ -119,7 +176,10 @@
                     </div>
                 </div>
  
-                <button type="submit" class="submit-btn">Unlock Administration Engine</button>
+                <button type="submit" class="submit-btn" id="loginBtn">Unlock Administration Engine</button>
+                
+                <div id="errorMsg" class="error-msg"></div>
+                <div id="successMsg" class="success-msg"></div>
             </form>
  
             <a href="index.html" class="back-link">← RETURN TO MAIN LANDING GATEWAY</a>
@@ -127,6 +187,14 @@
     </div>
  
     <script>
+        let selectedRole = 'librarian';
+
+        function selectRole(element) {
+            document.querySelectorAll('.role-option').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            selectedRole = element.dataset.role;
+        }
+
         // Visibility Toggle Logic
         const togglePasswordAdmin = document.getElementById('togglePasswordAdmin');
         const passwordInputAdmin = document.getElementById('adminPassword');
@@ -141,34 +209,74 @@
         document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
  
-            const admin_id = document.getElementById('adminId').value;
+            const user_id = document.getElementById('adminId').value.trim().toUpperCase();
             const password = passwordInputAdmin.value;
+            const loginBtn = document.getElementById('loginBtn');
+            const errorMsg = document.getElementById('errorMsg');
+            const successMsg = document.getElementById('successMsg');
+
+            // Reset messages
+            errorMsg.style.display = 'none';
+            successMsg.style.display = 'none';
+
+            // Validation
+            if (!user_id) {
+                errorMsg.textContent = "Please enter your Access ID.";
+                errorMsg.style.display = 'block';
+                return;
+            }
+            if (!password) {
+                errorMsg.textContent = "Please enter your password.";
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            // Disable button during request
+            loginBtn.disabled = true;
+            loginBtn.textContent = "Authenticating...";
  
             try {
                 const response = await fetch('http://localhost:5000/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ admin_id, password, role: 'admin' })
+                    body: JSON.stringify({ user_id, password, role: selectedRole })
                 });
  
                 const data = await response.json();
  
                 if (data.success) {
                     if (data.role === 'librarian' || data.role === 'admin') {
-                        // FIX: Save under 'adminToken' so admin.html can read it separately from student token
+                        // Store admin session data
                         localStorage.setItem('adminToken', data.token);
+                        localStorage.setItem('token', data.token);
                         localStorage.setItem('adminRole', data.role);
                         localStorage.setItem('admin_name', data.name);
-                        window.location.href = 'admin.html';
+                        localStorage.setItem('user_id', data.user_id);
+                        
+                        successMsg.textContent = "Login successful! Redirecting...";
+                        successMsg.style.display = 'block';
+
+                        setTimeout(() => {
+                            window.location.href = 'admin.html';
+                        }, 1000);
                     } else {
-                        alert("Access Denied: Account profile does not possess administrative privileges.");
+                        errorMsg.textContent = "Access Denied: Account profile does not possess administrative privileges.";
+                        errorMsg.style.display = 'block';
+                        loginBtn.disabled = false;
+                        loginBtn.textContent = "Unlock Administration Engine";
                     }
                 } else {
-                    alert(data.message || "Unauthorized Administration Key.");
+                    errorMsg.textContent = data.message || "Unauthorized Administration Key.";
+                    errorMsg.style.display = 'block';
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = "Unlock Administration Engine";
                 }
             } catch (err) {
                 console.error("Network interface error:", err);
-                alert("Unable to establish a pipeline connection with the SSUET backend system.");
+                errorMsg.textContent = "Unable to establish a pipeline connection with the SSUET backend system.";
+                errorMsg.style.display = 'block';
+                loginBtn.disabled = false;
+                loginBtn.textContent = "Unlock Administration Engine";
             }
         });
     </script>

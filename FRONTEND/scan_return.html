@@ -154,6 +154,12 @@
         let isCameraRunning = false;
         let currentMode     = 'camera';
  
+        // Auth check at page load
+        const token = localStorage.getItem("token");
+        if (!token) {
+            window.location.href = "studentlogin.html";
+        }
+ 
         window.addEventListener('DOMContentLoaded', () => switchMode('camera'));
  
         // ── Tab switch ─────────────────────────────────────────
@@ -263,7 +269,6 @@
  
         // ── Scan callbacks ─────────────────────────────────────
         function onScanSuccess(decodedText) {
-            alert("✅ Scanned: " + decodedText); // Added diagnostic alert [2]
             const box = document.getElementById('preview-box');
             box.classList.add('scan-success');
             setStatus('success', 'QR detected! Processing…');
@@ -332,6 +337,8 @@
                 return;
             }
  
+            setStatus('active', 'Processing return…');
+ 
             try {
                 const res = await fetch("http://localhost:5000/api/transactions/return", {
                     method: "POST",
@@ -339,16 +346,26 @@
                         "Content-Type": "application/json",
                         "Authorization": `Bearer ${token}`
                     },
-                    body: JSON.stringify({ qr_code: val })
+                    body: JSON.stringify({ qr_code: val.trim() })
                 });
  
                 const data = await res.json();
-                alert(data.message || "Transaction processed.");
-                if (data.success) window.location.href = "dashboard.html";
-                else setStatus('error', data.message || 'Return failed.');
+ 
+                if (data.success) {
+                    let msg = data.message;
+                    if (data.fine_amount > 0) {
+                        msg += ` Fine: PKR ${data.fine_amount}`;
+                    }
+                    alert(msg);
+                    window.location.href = "dashboard.html";
+                } else {
+                    setStatus('error', data.message || 'Return failed.');
+                    alert(data.message || "Return failed");
+                }
             } catch (err) {
                 console.error("Fetch error:", err);
                 setStatus('error', 'Server unreachable. Is the backend running?');
+                alert("Server unreachable. Please check your connection.");
             }
         }
  

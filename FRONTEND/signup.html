@@ -10,11 +10,56 @@
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
         select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23b08d44'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; }
         .strength-bar { transition: width 0.4s ease, background-color 0.4s ease; }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 13px;
+            z-index: 1000;
+            transform: translateX(150%);
+            transition: transform 0.4s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+        .toast.show { transform: translateX(0); }
+        .toast.success { background: #10b981; }
+        .toast.error { background: #ef4444; }
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+        }
+        .loading-overlay.active { display: flex; }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #b08d44;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-[#F8F7F4] text-gray-900 min-h-screen flex items-center justify-center p-4 md:p-8 relative overflow-y-auto">
  
     <div class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(#b08d44_1px,transparent_1px)] [background-size:24px_24px] opacity-[0.03] pointer-events-none"></div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+    </div>
  
     <div class="w-full max-w-5xl bg-white rounded-2xl shadow-[0_25px_60_rgba(0,0,0,0.12)] border-2 border-gray-200/80 overflow-hidden grid grid-cols-1 lg:grid-cols-2 min-h-fit z-10 my-auto">
  
@@ -22,7 +67,7 @@
         <div class="bg-gradient-to-br from-[#1c1a16] via-[#2b251a] to-[#12100d] p-10 md:p-12 lg:p-16 text-white flex flex-col justify-between relative min-h-[400px] lg:min-h-[650px] border-b-4 lg:border-b-0 lg:border-r-4 border-[#b08d44]">
             <div class="absolute inset-0 bg-black/10 pointer-events-none"></div>
             
-            <!-- Logo Section: Fixed to fill the box -->
+            <!-- Logo Section -->
             <div class="relative z-10 flex items-center space-x-5">
                 <div class="w-14 h-14 bg-white rounded-xl shadow-2xl overflow-hidden flex items-center justify-center border border-white/10">
                     <img src="ssuetlogo.png" alt="SSUET Logo" class="w-full h-full object-cover">
@@ -51,7 +96,7 @@
                     <div class="h-1.5 w-20 bg-[#b08d44] rounded-full mt-4"></div>
                 </div>
  
-                <form onsubmit="event.preventDefault(); handleRegistration();" autocomplete="off" class="space-y-4">
+                <form id="registrationForm" autocomplete="off" class="space-y-4">
  
                     <!-- NAME (Alphabets Only) -->
                     <div class="space-y-1">
@@ -89,11 +134,12 @@
                             <select id="regDepartment" required
                                 class="w-full bg-gray-50/50 border-2 border-gray-200 focus:border-[#b08d44] focus:bg-white px-4 py-2.5 text-xs rounded-xl outline-none shadow-sm transition-all duration-300 cursor-pointer">
                                 <option value="" disabled selected>Select</option>
-                                <option value="COMPUTER SCIENCE">Computer Science</option>
-                                <option value="SOFTWARE ENGINEERING">Software Engineering</option>
-                                <option value="ELECTRICAL ENGINEERING">Electrical Engineering</option>
-                                <option value="CIVIL ENGINEERING">Civil Engineering</option>
-                                <option value="MECHANICAL ENGINEERING">Mechanical Engineering</option>
+                                <option value="Computer Science">Computer Science</option>
+                                <option value="Software Engineering">Software Engineering</option>
+                                <option value="Electrical Engineering">Electrical Engineering</option>
+                                <option value="Civil Engineering">Civil Engineering</option>
+                                <option value="Mechanical Engineering">Mechanical Engineering</option>
+                                <option value="Mathematics">Mathematics</option>
                             </select>
                         </div>
                         <div class="space-y-1">
@@ -129,8 +175,8 @@
                         <p id="strengthText" class="text-[9px] font-bold uppercase text-gray-400 mt-1">Strength: None</p>
                     </div>
  
-                    <button type="submit"
-                        class="w-full py-4 bg-[#b08d44] text-white font-extrabold text-xs uppercase tracking-widest rounded-xl hover:bg-[#9c7b39] transition-all duration-300 mt-2 shadow-lg shadow-[#b08d44]/20">
+                    <button type="submit" id="submitBtn"
+                        class="w-full py-4 bg-[#b08d44] text-white font-extrabold text-xs uppercase tracking-widest rounded-xl hover:bg-[#9c7b39] transition-all duration-300 mt-2 shadow-lg shadow-[#b08d44]/20 disabled:opacity-50 disabled:cursor-not-allowed">
                         Execute Profile Provision
                     </button>
                 </form>
@@ -144,6 +190,30 @@
     </div>
  
     <script>
+        // Toast notification helper
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+
+        // Loading overlay helper
+        function setLoading(isLoading) {
+            const overlay = document.getElementById('loadingOverlay');
+            const btn = document.getElementById('submitBtn');
+            if (isLoading) {
+                overlay.classList.add('active');
+                btn.disabled = true;
+                btn.textContent = 'Provisioning...';
+            } else {
+                overlay.classList.remove('active');
+                btn.disabled = false;
+                btn.textContent = 'Execute Profile Provision';
+            }
+        }
+
         function togglePassword() {
             const passInput = document.getElementById('regPass');
             const eyeIcon = document.getElementById('eyeIcon');
@@ -171,31 +241,54 @@
             else { bar.style.width="100%"; bar.style.backgroundColor="#10b981"; txt.innerText="Strength: Strong"; txt.style.color="#10b981"; }
         }
 
-        async function handleRegistration() {
+        // Form submission handler
+        document.getElementById('registrationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
             const name       = document.getElementById('regName').value.trim();
-            const studentId  = document.getElementById('regId').value.trim();
-            const email      = document.getElementById('regEmail').value.trim();
+            const student_id = document.getElementById('regId').value.trim().toUpperCase();
+            const email      = document.getElementById('regEmail').value.trim().toLowerCase();
             const department = document.getElementById('regDepartment').value;
             const semester   = document.getElementById('regSemester').value;
             const password   = document.getElementById('regPass').value;
- 
+
+            // Client-side validation
+            if (!name || !student_id || !email || !department || !semester || !password) {
+                showToast("All fields are required.", "error");
+                return;
+            }
+
+            if (password.length < 6) {
+                showToast("Password must be at least 6 characters.", "error");
+                return;
+            }
+
+            setLoading(true);
+
             try {
                 const response = await fetch('http://localhost:5000/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, student_id: studentId, email, password, department, semester })
+                    body: JSON.stringify({ name, student_id, email, password, department, semester })
                 });
+                
                 const data = await response.json();
+
                 if (data.success) {
-                    alert("Account successfully provisioned.");
-                    window.location.href = 'studentlogin.html';
+                    showToast("Account successfully provisioned! Redirecting to login...", "success");
+                    setTimeout(() => {
+                        window.location.href = 'studentlogin.html';
+                    }, 2000);
                 } else {
-                    alert("Registration Rejected: " + data.message);
+                    showToast(data.message || "Registration failed. Please try again.", "error");
+                    setLoading(false);
                 }
             } catch (error) {
-                alert("Server Connection Error.");
+                console.error("Registration error:", error);
+                showToast("Unable to connect to SSUET backend system. Please try again later.", "error");
+                setLoading(false);
             }
-        }
+        });
     </script>
 </body>
 </html>

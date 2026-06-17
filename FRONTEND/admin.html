@@ -5,171 +5,496 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Librarian Panel | SSUET Library Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { background-color: #e8dcc4; font-family: 'Segoe UI', sans-serif; }
         .bg-navy { background-color: #0f172a; }
         .text-gold { color: #d4af37; }
         .border-gold { border-color: #d4af37; }
+        
+        /* Tab system */
+        .tab-btn { 
+            padding: 10px 20px; 
+            font-size: 11px; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            letter-spacing: 0.1em;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #64748b;
+        }
+        .tab-btn:hover { color: #d4af37; }
+        .tab-btn.active { 
+            color: #d4af37; 
+            border-bottom-color: #d4af37; 
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            min-width: 300px;
+            max-width: 400px;
+            padding: 14px 18px;
+            border-radius: 10px;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            transform: translateX(120%);
+            transition: transform 0.4s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .toast.show { transform: translateX(0); }
+        .toast.success { background: #059669; }
+        .toast.error { background: #dc2626; }
+        .toast.warning { background: #d97706; }
+        .toast.info { background: #2563eb; }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 50;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e2e8f0;
+            border-top-color: #d4af37;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="p-4 md:p-8">
- 
-    <nav class="bg-navy p-6 md:p-8 rounded-2xl mb-8 flex justify-between items-center shadow-lg border-b-4 border-gold">
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Navigation -->
+    <nav class="bg-navy p-6 md:p-8 rounded-2xl mb-6 flex justify-between items-center shadow-lg border-b-4 border-gold">
         <div>
             <h1 class="text-2xl md:text-3xl font-black text-white tracking-tighter">SSUET SMART LIBRARY</h1>
             <p class="text-gold uppercase text-[10px] tracking-[0.25em] font-bold mt-1">Librarian Admin Control Analytics</p>
         </div>
-        <button class="bg-[#d4af37] text-[#0f172a] font-bold px-6 py-3 rounded-lg text-xs uppercase tracking-widest hover:bg-white transition-all shadow-md" 
-                onclick="localStorage.removeItem('adminToken'); localStorage.removeItem('adminRole'); window.location.href='index.html';">
-            Sign Out
-        </button>
+        <div class="flex items-center gap-4">
+            <span id="adminRoleDisplay" class="text-gold text-xs font-bold uppercase tracking-widest bg-white/10 px-3 py-1 rounded-lg"></span>
+            <button class="bg-[#d4af37] text-[#0f172a] font-bold px-6 py-3 rounded-lg text-xs uppercase tracking-widest hover:bg-white transition-all shadow-md" 
+                    onclick="handleLogout()">
+                Sign Out
+            </button>
+        </div>
     </nav>
+
+    <!-- Tab Navigation -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 mb-6 overflow-x-auto">
+        <div class="flex min-w-max px-4">
+            <button class="tab-btn active" onclick="switchTab('dashboard', this)">Dashboard</button>
+            <button class="tab-btn" onclick="switchTab('books', this)">Book Management</button>
+            <button class="tab-btn" onclick="switchTab('users', this)">Users</button>
+            <button class="tab-btn" onclick="switchTab('branches', this)">Branches</button>
+            <button class="tab-btn" onclick="switchTab('analytics', this)">Analytics</button>
+            <button class="tab-btn" onclick="switchTab('logs', this)">Logs & Security</button>
+            <button class="tab-btn" onclick="switchTab('backup', this)">Backup</button>
+        </div>
+    </div>
  
     <main class="space-y-6">
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border-l-4 border-l-navy">
-                <h3 class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Total Assets Issued</h3>
-                <h2 id="total-issued-metric" class="text-4xl md:text-5xl font-black mt-2 text-slate-800">0</h2>
+
+        <!-- ==================== DASHBOARD TAB ==================== -->
+        <div id="tab-dashboard" class="tab-content active">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border-l-4 border-l-navy">
+                    <h3 class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Total Assets Issued</h3>
+                    <h2 id="total-issued-metric" class="text-4xl md:text-5xl font-black mt-2 text-slate-800">0</h2>
+                </div>
+                <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border-l-4 border-l-red-500">
+                    <h3 class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Overdue Accounts</h3>
+                    <h2 id="defaulters-metric" class="text-4xl md:text-5xl font-black mt-2 text-red-600">0</h2>
+                </div>
+                <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border-l-4 border-l-emerald-600">
+                    <h3 class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Aggregated Fines</h3>
+                    <h2 class="text-3xl md:text-4xl font-black mt-2 text-emerald-700">PKR <span id="fines-metric">0.00</span></h2>
+                </div>
             </div>
-            <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border-l-4 border-l-red-500">
-                <h3 class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Overdue Accounts</h3>
-                <h2 id="defaulters-metric" class="text-4xl md:text-5xl font-black mt-2 text-red-600">0</h2>
+ 
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-sm border border-slate-800 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-[10px] text-gold uppercase tracking-widest font-bold">Active Inventory Stock</h3>
+                        <h2 id="inventory-metric" class="text-4xl font-black mt-2 text-white">0</h2>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-2 font-medium">Available book assets ready for loan validation cycles.</p>
+                </div>
+                <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-sm border border-slate-800 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-[10px] text-gold uppercase tracking-widest font-bold">Daily Transaction Operations</h3>
+                        <h2 id="daily-traffic-metric" class="text-4xl font-black mt-2 text-white">0</h2>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-2 font-medium">Accumulated server checkout & processing return logs generated today.</p>
+                </div>
+                <div class="bg-slate-950 text-white p-6 rounded-2xl shadow-sm border border-slate-800 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-[10px] text-amber-500 uppercase tracking-widest font-bold mb-2">🔥 Most Borrowed Assets</h3>
+                        <ol id="popular-books-list" class="text-xs space-y-1.5 list-decimal list-inside text-slate-300 font-medium">
+                            <li class="text-slate-500 italic">No historical borrows recorded...</li>
+                        </ol>
+                    </div>
+                </div>
             </div>
-            <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border-l-4 border-l-emerald-600">
-                <h3 class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Aggregated Fines</h3>
-                <h2 class="text-3xl md:text-4xl font-black mt-2 text-emerald-700">PKR <span id="fines-metric">0.00</span></h2>
+ 
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest">System Operations Audit Trail</h3>
+                        <span class="text-[9px] bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full uppercase font-bold tracking-widest animate-pulse">Live Database</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left min-w-[600px]">
+                            <thead class="bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
+                                <tr><th class="p-4 md:p-6">ID</th><th class="p-4 md:p-6">Event</th><th class="p-4 md:p-6">User</th><th class="p-4 md:p-6">Details</th><th class="p-4 md:p-6">Timestamp</th></tr>
+                            </thead>
+                            <tbody id="logs-body" class="text-sm text-slate-700 divide-y divide-slate-100">
+                                <tr><td colspan="5" class="p-6 text-center text-slate-400">Synchronizing system logs ledger...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+ 
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 bg-red-50/40">
+                        <h3 class="font-bold text-red-800 uppercase text-sm tracking-widest flex items-center gap-2">
+                            ⚠️ Defaulters Directory
+                        </h3>
+                        <p class="text-[11px] text-red-600/80 mt-0.5 font-medium">Active structural listing of users with unreturned overdue books.</p>
+                    </div>
+                    <div id="defaulters-list-body" class="p-4 space-y-3 max-h-[420px] overflow-y-auto bg-slate-50/50">
+                        <p class="text-xs text-slate-400 text-center py-4 italic">No active account defaults identified.</p>
+                    </div>
+                </div>
             </div>
         </div>
- 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-sm border border-slate-800 flex flex-col justify-between">
-                <div>
-                    <h3 class="text-[10px] text-gold uppercase tracking-widest font-bold">Active Inventory Stock</h3>
-                    <h2 id="inventory-metric" class="text-4xl font-black mt-2 text-white">0</h2>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-2 font-medium">Available book assets ready for loan validation cycles.</p>
-            </div>
-            <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-sm border border-slate-800 flex flex-col justify-between">
-                <div>
-                    <h3 class="text-[10px] text-gold uppercase tracking-widest font-bold">Daily Transaction Operations</h3>
-                    <h2 id="daily-traffic-metric" class="text-4xl font-black mt-2 text-white">0</h2>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-2 font-medium">Accumulated server checkout & processing return logs generated today.</p>
-            </div>
-            <div class="bg-slate-950 text-white p-6 rounded-2xl shadow-sm border border-slate-800 flex flex-col justify-between">
-                <div>
-                    <h3 class="text-[10px] text-amber-500 uppercase tracking-widest font-bold mb-2">🔥 Most Borrowed Assets</h3>
-                    <ol id="popular-books-list" class="text-xs space-y-1.5 list-decimal list-inside text-slate-300 font-medium">
-                        <li class="text-slate-500 italic">No historical borrows recorded...</li>
-                    </ol>
-                </div>
-            </div>
-        </div>
- 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="p-6 border-b border-slate-100 flex justify-between items-center">
-                    <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest">System Operations Audit Trail</h3>
-                    <span class="text-[9px] bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full uppercase font-bold tracking-widest animate-pulse">Live Database</span>
+
+        <!-- ==================== BOOK MANAGEMENT TAB ==================== -->
+        <div id="tab-books" class="tab-content">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                        <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest">📚 Books Inventory & QR Codes</h3>
+                        <p class="text-[11px] text-slate-400 mt-0.5 font-medium">Manage books, generate QR codes, and track availability.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <input id="book-search" type="text" placeholder="Search title, author, QR code..." 
+                               class="border border-slate-200 rounded-lg px-4 py-2 text-xs w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                               oninput="filterBooks(this.value)">
+                        <button onclick="openAddBookModal()" class="bg-navy text-gold px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition">
+                            + Add Book
+                        </button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left min-w-[600px]">
+                    <table class="w-full text-left min-w-[700px]">
                         <thead class="bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
-                            <tr><th class="p-4 md:p-6">ID</th><th class="p-4 md:p-6">Event</th><th class="p-4 md:p-6">User</th><th class="p-4 md:p-6">Details</th><th class="p-4 md:p-6">Timestamp</th></tr>
+                            <tr>
+                                <th class="p-4 md:p-5">Title</th>
+                                <th class="p-4 md:p-5">Author</th>
+                                <th class="p-4 md:p-5">Category</th>
+                                <th class="p-4 md:p-5">Branch</th>
+                                <th class="p-4 md:p-5">QR Code</th>
+                                <th class="p-4 md:p-5">Status</th>
+                                <th class="p-4 md:p-5">Actions</th>
+                            </tr>
                         </thead>
-                        <tbody id="logs-body" class="text-sm text-slate-700 divide-y divide-slate-100">
-                            <tr><td colspan="5" class="p-6 text-center text-slate-400">Synchronizing system logs ledger...</td></tr>
+                        <tbody id="books-body" class="text-sm text-slate-700 divide-y divide-slate-100">
+                            <tr><td colspan="7" class="p-6 text-center text-slate-400">Loading inventory...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
- 
+        </div>
+
+        <!-- ==================== USERS TAB ==================== -->
+        <div id="tab-users" class="tab-content">
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="p-6 border-b border-slate-100 bg-red-50/40">
-                    <h3 class="font-bold text-red-800 uppercase text-sm tracking-widest flex items-center gap-2">
-                        ⚠️ Defaulters Directory
-                    </h3>
-                    <p class="text-[11px] text-red-600/80 mt-0.5 font-medium">Active structural listing of users with unreturned overdue books.</p>
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest">👥 User Management</h3>
+                    <span class="text-[10px] text-slate-400">Manage student and staff accounts</span>
                 </div>
-                <div id="defaulters-list-body" class="p-4 space-y-3 max-h-[420px] overflow-y-auto bg-slate-50/50">
-                    <p class="text-xs text-slate-400 text-center py-4 italic">No active account defaults identified.</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left min-w-[600px]">
+                        <thead class="bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
+                            <tr>
+                                <th class="p-4">User ID</th>
+                                <th class="p-4">Name</th>
+                                <th class="p-4">Email</th>
+                                <th class="p-4">Role</th>
+                                <th class="p-4">Department</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-body" class="text-sm text-slate-700 divide-y divide-slate-100">
+                            <tr><td colspan="7" class="p-6 text-center text-slate-400">Loading users...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
- 
-        <!-- ─── BOOKS INVENTORY + QR CODE SECTION ─── -->
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div>
-                    <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest">📚 Books Inventory & QR Codes</h3>
-                    <p class="text-[11px] text-slate-400 mt-0.5 font-medium">Click "Show QR" to display a scannable code for student issuance.</p>
+
+        <!-- ==================== BRANCHES TAB ==================== -->
+        <div id="tab-branches" class="tab-content">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" id="branches-container">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <p class="text-slate-400 text-sm text-center">Loading branches...</p>
                 </div>
-                <input id="book-search" type="text" placeholder="Search title, author, QR code..." 
-                       class="border border-slate-200 rounded-lg px-4 py-2 text-xs w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                       oninput="filterBooks(this.value)">
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left min-w-[700px]">
-                    <thead class="bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
-                        <tr>
-                            <th class="p-4 md:p-5">Title</th>
-                            <th class="p-4 md:p-5">Author</th>
-                            <th class="p-4 md:p-5">Department</th>
-                            <th class="p-4 md:p-5">QR Code</th>
-                            <th class="p-4 md:p-5">Status</th>
-                            <th class="p-4 md:p-5">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="books-body" class="text-sm text-slate-700 divide-y divide-slate-100">
-                        <tr><td colspan="6" class="p-6 text-center text-slate-400">Loading inventory...</td></tr>
-                    </tbody>
-                </table>
             </div>
         </div>
- 
-        <!-- QR Modal -->
-        <div id="qr-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4" onclick="handleModalClick(event)">
-            <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-xs w-full text-center border border-slate-200" onclick="event.stopPropagation()">
-                <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1">Scan to Issue</p>
-                <h3 class="font-black text-slate-800 text-sm tracking-tight mb-1 leading-tight" id="qr-modal-title">Book Title</h3>
-                <p class="text-[11px] text-slate-400 font-mono mb-5 bg-slate-50 px-3 py-1 rounded-lg inline-block" id="qr-modal-code">QR-CODE</p>
-                <div id="qr-render-target" class="flex justify-center mb-5"></div>
-                <p class="text-[10px] text-slate-400 mb-5">Point student's mobile camera at this QR code to issue book</p>
-                <button onclick="closeQrModal()" 
-                        class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-700 transition">
-                    Close
-                </button>
+
+        <!-- ==================== ANALYTICS TAB ==================== -->
+        <div id="tab-analytics" class="tab-content">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest mb-4">Department Statistics</h3>
+                    <canvas id="deptChart" height="200"></canvas>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest mb-4">Monthly Summary</h3>
+                    <canvas id="monthlyChart" height="200"></canvas>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest mb-4">Fine Trends</h3>
+                    <canvas id="fineChart" height="200"></canvas>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest mb-4">Most Active Students</h3>
+                    <div id="active-students-list" class="space-y-2 max-h-[250px] overflow-y-auto"></div>
+                </div>
             </div>
         </div>
- 
+
+        <!-- ==================== LOGS & SECURITY TAB ==================== -->
+        <div id="tab-logs" class="tab-content">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-6 border-b border-slate-100">
+                        <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest">Activity Logs</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left min-w-[500px]">
+                            <thead class="bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
+                                <tr><th class="p-4">Action</th><th class="p-4">User</th><th class="p-4">Details</th><th class="p-4">Severity</th><th class="p-4">Time</th></tr>
+                            </thead>
+                            <tbody id="activity-logs-body" class="text-sm text-slate-700 divide-y divide-slate-100">
+                                <tr><td colspan="5" class="p-6 text-center text-slate-400">Loading logs...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 bg-red-50/40">
+                        <h3 class="font-bold text-red-800 uppercase text-sm tracking-widest">Failed Login Attempts</h3>
+                    </div>
+                    <div id="failed-logins-body" class="p-4 space-y-2 max-h-[400px] overflow-y-auto">
+                        <p class="text-xs text-slate-400 text-center py-4">Loading security data...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== BACKUP TAB ==================== -->
+        <div id="tab-backup" class="tab-content">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest mb-4">Database Backup</h3>
+                    <p class="text-xs text-slate-500 mb-4">Create a manual backup of the entire database. This includes all tables, transactions, and user data.</p>
+                    <button onclick="triggerBackup()" class="bg-navy text-gold px-6 py-3 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition flex items-center gap-2">
+                        <span>🔄</span> Trigger Manual Backup
+                    </button>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest mb-4">Data Archival</h3>
+                    <p class="text-xs text-slate-500 mb-4">Archive old completed transactions to improve database performance. Archived data is moved to a separate table.</p>
+                    <div class="flex gap-2 items-center">
+                        <select id="archiveMonths" class="border border-slate-200 rounded-lg px-3 py-2 text-xs">
+                            <option value="6">6 months</option>
+                            <option value="12" selected>12 months</option>
+                            <option value="24">24 months</option>
+                        </select>
+                        <button onclick="triggerArchive()" class="bg-amber-600 text-white px-6 py-3 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-amber-700 transition">
+                            Archive Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-6">
+                <div class="p-6 border-b border-slate-100">
+                    <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest">Backup History</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
+                            <tr><th class="p-4">Date</th><th class="p-4">Type</th><th class="p-4">Status</th><th class="p-4">File Path</th></tr>
+                        </thead>
+                        <tbody id="backup-history-body" class="text-sm text-slate-700 divide-y divide-slate-100">
+                            <tr><td colspan="4" class="p-6 text-center text-slate-400">No backups found.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </main>
+
+    <!-- Add Book Modal -->
+    <div class="modal-overlay" id="addBookModal" onclick="closeModalOnOverlay(event, 'addBookModal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest mb-4">Add New Book</h3>
+            <form id="addBookForm" class="space-y-3">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Title</label>
+                    <input type="text" id="bookTitle" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Author</label>
+                    <input type="text" id="bookAuthor" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">ISBN</label>
+                    <input type="text" id="bookIsbn" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Category</label>
+                    <input type="text" id="bookCategory" placeholder="e.g., Computer Science" required class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 bg-navy text-gold py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition">Add Book</button>
+                    <button type="button" onclick="closeModal('addBookModal')" class="flex-1 bg-slate-200 text-slate-700 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-300 transition">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- QR Modal -->
+    <div id="qr-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4" onclick="handleModalClick(event)">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-xs w-full text-center border border-slate-200" onclick="event.stopPropagation()">
+            <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1">Scan to Issue</p>
+            <h3 class="font-black text-slate-800 text-sm tracking-tight mb-1 leading-tight" id="qr-modal-title">Book Title</h3>
+            <p class="text-[11px] text-slate-400 font-mono mb-5 bg-slate-50 px-3 py-1 rounded-lg inline-block" id="qr-modal-code">QR-CODE</p>
+            <div id="qr-render-target" class="flex justify-center mb-5"></div>
+            <p class="text-[10px] text-slate-400 mb-5">Point student's mobile camera at this QR code to issue book</p>
+            <button onclick="closeQrModal()" 
+                    class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-700 transition">
+                Close
+            </button>
+        </div>
+    </div>
  
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
         // ─── GUARD ───
-        const ADMIN_TOKEN = localStorage.getItem('adminToken');
+        const ADMIN_TOKEN = localStorage.getItem('adminToken') || localStorage.getItem('token');
+        const ADMIN_ROLE = localStorage.getItem('adminRole') || 'librarian';
+        
         if (!ADMIN_TOKEN) {
-            alert("Session expired or unauthorized. Please log in as librarian.");
-            window.location.href = 'index.html';
+            showToast("Session expired. Please log in as librarian.", "error");
+            setTimeout(() => window.location.href = 'index.html', 2000);
         }
- 
-        // ─── Store all books for filtering ───
-        let allBooks = [];
- 
+
+        // Show admin role
+        document.getElementById('adminRoleDisplay').textContent = ADMIN_ROLE;
+
+        // ─── TOAST SYSTEM ───
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${type === 'success' ? '✓' : type === 'error' ? '✕' : type === 'warning' ? '⚠' : 'ℹ'}</span> ${message}`;
+            container.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.add('show'));
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }, 4000);
+        }
+
+        // ─── TAB SYSTEM ───
+        function switchTab(tabName, btn) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            btn.classList.add('active');
+            
+            // Load data for specific tabs
+            if (tabName === 'analytics') loadAnalytics();
+            if (tabName === 'users') loadUsers();
+            if (tabName === 'branches') loadBranches();
+            if (tabName === 'logs') loadLogs();
+            if (tabName === 'backup') loadBackupHistory();
+        }
+
+        // ─── MODAL HELPERS ───
+        function openAddBookModal() {
+            document.getElementById('addBookModal').classList.add('active');
+        }
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+        function closeModalOnOverlay(event, modalId) {
+            if (event.target === document.getElementById(modalId)) closeModal(modalId);
+        }
+
+        // ─── LOAD DASHBOARD DATA ───
         async function loadAdminData() {
-            const token = localStorage.getItem('adminToken');
             try {
                 const response = await fetch('http://localhost:5000/api/admin/metrics', {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
                 });
  
                 if (!response.ok) {
-                    const err = await response.json();
-                    alert("Error: " + (err.message || "Unauthorized access."));
-                    return;
+                    if (response.status === 401 || response.status === 403) {
+                        showToast("Unauthorized access. Please log in again.", "error");
+                        setTimeout(() => handleLogout(), 2000);
+                        return;
+                    }
+                    throw new Error("Server error");
                 }
  
                 const data = await response.json();
+                if (!data.success) throw new Error(data.message);
  
                 document.getElementById('total-issued-metric').innerText = data.total_issued;
                 document.getElementById('defaulters-metric').innerText = data.active_defaulters;
@@ -195,13 +520,13 @@
                         <div class="p-3 bg-white border border-red-100 rounded-xl shadow-xs flex flex-col gap-2">
                             <div>
                                 <h4 class="text-xs font-black text-slate-900 uppercase">${student.name}</h4>
-                                <p class="text-[10px] text-slate-400 font-mono font-bold">${student.student_id}</p>
+                                <p class="text-[10px] text-slate-400 font-mono font-bold">${student.user_id || student.student_id}</p>
                             </div>
                             <div class="flex justify-between items-center">
                                 <div class="text-[10px] font-semibold text-red-700 uppercase bg-red-50 px-2 py-0.5 rounded border border-red-100/50">
                                     ${student.department} | Sem ${student.semester}
                                 </div>
-                                <button onclick="clearFine('${student.student_id}')" 
+                                <button onclick="clearFine('${student.user_id || student.student_id}')" 
                                         class="bg-emerald-600 text-white text-[9px] font-bold px-3 py-1 rounded hover:bg-emerald-700 transition-colors">
                                     CLEAR FINE
                                 </button>
@@ -215,15 +540,15 @@
                 const tbody = document.getElementById('logs-body');
                 if (data.logs && data.logs.length > 0) {
                     tbody.innerHTML = data.logs.map(log => {
-                        const displayId = log.id || log.log_id || 'N/A';
-                        const isWarning = log.action_type === "OVERDUE_WARNING";
+                        const displayId = log.log_id || log.id || 'N/A';
+                        const isWarning = log.severity === 'WARNING' || log.severity === 'CRITICAL';
                         const eventStyle = isWarning ? "text-red-600 font-extrabold" : "text-slate-900 font-bold";
                         const rowBg = isWarning ? "bg-red-50/40" : "hover:bg-slate-50/80";
                         return `
                             <tr class="transition-colors ${rowBg}">
                                 <td class="p-4 md:p-6 font-mono text-xs text-slate-400">${displayId}</td>
                                 <td class="p-4 md:p-6 text-xs uppercase tracking-wide ${eventStyle}">${log.action_type}</td>
-                                <td class="p-4 md:p-6 font-mono text-xs text-slate-600 font-bold">${log.user_id}</td>
+                                <td class="p-4 md:p-6 font-mono text-xs text-slate-600 font-bold">${log.user_id || 'System'}</td>
                                 <td class="p-4 md:p-6 text-slate-500 italic text-xs max-w-xs truncate" title="${log.details}">${log.details}</td>
                                 <td class="p-4 md:p-6 text-xs font-mono text-slate-400">${new Date(log.timestamp).toLocaleString()}</td>
                             </tr>
@@ -235,52 +560,60 @@
  
             } catch (err) {
                 console.error("Dashboard Load Error:", err);
-                alert("Failed to connect to server.");
+                showToast("Failed to load dashboard data. Server may be offline.", "error");
             }
         }
  
         // ─── LOAD BOOKS ───
+        let allBooks = [];
         async function loadBooks() {
-            const token = localStorage.getItem('adminToken');
             try {
                 const res = await fetch('http://localhost:5000/api/admin/books', {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
                 });
                 const data = await res.json();
                 allBooks = data.books || [];
                 renderBooks(allBooks);
             } catch (err) {
                 document.getElementById('books-body').innerHTML = 
-                    `<tr><td colspan="6" class="p-6 text-center text-red-400">Failed to load books. Check server connection.</td></tr>`;
+                    `<tr><td colspan="7" class="p-6 text-center text-red-400">Failed to load books. Check server connection.</td></tr>`;
             }
         }
  
         function renderBooks(books) {
             const tbody = document.getElementById('books-body');
             if (!books.length) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">No books found.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">No books found.</td></tr>`;
                 return;
             }
             tbody.innerHTML = books.map(book => `
                 <tr class="hover:bg-slate-50 transition-colors">
                     <td class="p-4 md:p-5 font-semibold text-slate-800 max-w-[200px] truncate" title="${book.title}">${book.title}</td>
                     <td class="p-4 md:p-5 text-slate-500 text-xs">${book.author}</td>
-                    <td class="p-4 md:p-5 text-xs text-slate-500">${book.department_category}</td>
+                    <td class="p-4 md:p-5 text-xs text-slate-500">${book.department_category || book.category_name || 'N/A'}</td>
+                    <td class="p-4 md:p-5 text-xs text-slate-500">${book.branch_name || 'Main Library'}</td>
                     <td class="p-4 md:p-5 font-mono text-xs text-slate-600 bg-slate-50 rounded">${book.qr_code}</td>
                     <td class="p-4 md:p-5">
                         <span class="text-[10px] font-bold uppercase px-2 py-1 rounded-full ${
                             book.availability === 'AVAILABLE' 
                             ? 'bg-emerald-100 text-emerald-700' 
-                            : 'bg-red-100 text-red-700'
+                            : book.availability === 'ISSUED'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-amber-100 text-amber-700'
                         }">
                             ${book.availability}
                         </span>
                     </td>
-                    <td class="p-4 md:p-5">
+                    <td class="p-4 md:p-5 flex gap-1">
                         <button onclick="showQrModal('${book.qr_code}', \`${book.title.replace(/`/g, "'")}\`)"
-                                class="bg-[#0f172a] text-[#d4af37] text-[10px] font-bold px-4 py-2 rounded-lg hover:bg-slate-700 transition uppercase tracking-widest">
-                            Show QR
+                                class="bg-[#0f172a] text-[#d4af37] text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-slate-700 transition uppercase tracking-widest">
+                            QR
                         </button>
+                        ${ADMIN_ROLE === 'admin' ? `
+                        <button onclick="deleteBook(${book.book_id})"
+                                class="bg-red-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-red-700 transition">
+                            ✕
+                        </button>` : ''}
                     </td>
                 </tr>
             `).join('');
@@ -289,24 +622,71 @@
         function filterBooks(query) {
             const q = query.toLowerCase();
             const filtered = allBooks.filter(b =>
-                b.title.toLowerCase().includes(q) ||
-                b.author.toLowerCase().includes(q) ||
-                b.qr_code.toLowerCase().includes(q) ||
-                b.department_category.toLowerCase().includes(q)
+                (b.title || '').toLowerCase().includes(q) ||
+                (b.author || '').toLowerCase().includes(q) ||
+                (b.qr_code || '').toLowerCase().includes(q) ||
+                (b.department_category || b.category_name || '').toLowerCase().includes(q)
             );
             renderBooks(filtered);
+        }
+
+        // ─── ADD BOOK ───
+        document.getElementById('addBookForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('bookTitle').value;
+            const author = document.getElementById('bookAuthor').value;
+            const isbn = document.getElementById('bookIsbn').value;
+            const department_category = document.getElementById('bookCategory').value;
+
+            try {
+                const res = await fetch('http://localhost:5000/api/books', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${ADMIN_TOKEN}`
+                    },
+                    body: JSON.stringify({ title, author, isbn, department_category })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("Book added successfully!", "success");
+                    closeModal('addBookModal');
+                    document.getElementById('addBookForm').reset();
+                    loadBooks();
+                } else {
+                    showToast(data.message || "Failed to add book", "error");
+                }
+            } catch (err) {
+                showToast("Server error while adding book", "error");
+            }
+        });
+
+        // ─── DELETE BOOK ───
+        async function deleteBook(bookId) {
+            if (!confirm('Are you sure you want to delete this book?')) return;
+            try {
+                const res = await fetch(`http://localhost:5000/api/books/${bookId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("Book deleted successfully!", "success");
+                    loadBooks();
+                } else {
+                    showToast(data.message || "Failed to delete book", "error");
+                }
+            } catch (err) {
+                showToast("Server error", "error");
+            }
         }
  
         // ─── QR MODAL ───
         function showQrModal(qrCode, title) {
             document.getElementById('qr-modal-title').innerText = title;
             document.getElementById('qr-modal-code').innerText = qrCode;
- 
-            // Clear previous QR
             const target = document.getElementById('qr-render-target');
             target.innerHTML = '';
- 
-            // Generate new QR
             new QRCode(target, {
                 text: qrCode,
                 width: 180,
@@ -315,7 +695,6 @@
                 colorLight: "#ffffff",
                 correctLevel: QRCode.CorrectLevel.H
             });
- 
             const modal = document.getElementById('qr-modal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
@@ -334,41 +713,347 @@
         // ─── CLEAR FINE ───
         async function clearFine(studentId) {
             if (!confirm(`Are you sure you want to clear all fines for student ${studentId}?`)) return;
- 
-            const token = localStorage.getItem('adminToken');
             try {
                 const response = await fetch('http://localhost:5000/api/admin/clear-fine', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Authorization': `Bearer ${ADMIN_TOKEN}`
                     },
                     body: JSON.stringify({ student_id: studentId })
                 });
  
                 const result = await response.json();
                 if (result.success) {
-                    const btn = document.querySelector(`button[onclick="clearFine('${studentId}')"]`);
-                    if (btn) {
-                        const card = btn.closest('div.p-3');
-                        btn.disabled = true;
-                        btn.textContent = "✓ CLEARED";
-                        btn.className = "bg-slate-400 text-white text-[9px] font-bold px-3 py-1 rounded cursor-not-allowed";
-                        const fineNote = document.createElement('p');
-                        fineNote.className = "text-[10px] text-emerald-600 font-bold mt-1";
-                        fineNote.textContent = "Fine balance: PKR 0.00";
-                        card.appendChild(fineNote);
-                    }
-                    setTimeout(() => loadAdminData(), 1200);
+                    showToast("Fine cleared successfully!", "success");
+                    loadAdminData();
                 } else {
-                    alert("Error: " + result.message);
+                    showToast(result.message || "Failed to clear fine", "error");
                 }
             } catch (err) {
-                console.error("Error clearing fine:", err);
-                alert("Failed to connect to server.");
+                showToast("Server connection failed", "error");
             }
         }
+
+        // ─── LOAD USERS ───
+        async function loadUsers() {
+            try {
+                const res = await fetch('http://localhost:5000/api/users', {
+                    headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
+                });
+                const data = await res.json();
+                const tbody = document.getElementById('users-body');
+                if (data.success && data.users) {
+                    tbody.innerHTML = data.users.map(u => `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="p-4 font-mono text-xs text-slate-600">${u.user_id}</td>
+                            <td class="p-4 font-semibold text-slate-800">${u.name}</td>
+                            <td class="p-4 text-xs text-slate-500">${u.email}</td>
+                            <td class="p-4"><span class="text-[10px] font-bold uppercase px-2 py-1 rounded-full ${u.role_name === 'admin' ? 'bg-purple-100 text-purple-700' : u.role_name === 'librarian' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}">${u.role_name}</span></td>
+                            <td class="p-4 text-xs text-slate-500">${u.department || 'N/A'}</td>
+                            <td class="p-4"><span class="text-[10px] font-bold uppercase px-2 py-1 rounded-full ${u.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : u.status === 'SUSPENDED' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}">${u.status}</span></td>
+                            <td class="p-4">
+                                ${u.status !== 'ACTIVE' ? `<button onclick="updateUserStatus('${u.user_id}', 'ACTIVE')" class="bg-emerald-600 text-white text-[9px] font-bold px-2 py-1 rounded hover:bg-emerald-700 transition">Activate</button>` : ''}
+                                ${u.status === 'ACTIVE' ? `<button onclick="updateUserStatus('${u.user_id}', 'SUSPENDED')" class="bg-red-600 text-white text-[9px] font-bold px-2 py-1 rounded hover:bg-red-700 transition">Suspend</button>` : ''}
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) {
+                showToast("Failed to load users", "error");
+            }
+        }
+
+        async function updateUserStatus(userId, status) {
+            try {
+                const res = await fetch(`http://localhost:5000/api/users/${userId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${ADMIN_TOKEN}`
+                    },
+                    body: JSON.stringify({ status })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`User ${status.toLowerCase()} successfully!`, "success");
+                    loadUsers();
+                } else {
+                    showToast(data.message, "error");
+                }
+            } catch (err) {
+                showToast("Server error", "error");
+            }
+        }
+
+        // ─── LOAD BRANCHES ───
+        async function loadBranches() {
+            try {
+                const res = await fetch('http://localhost:5000/api/branches', {
+                    headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
+                });
+                const data = await res.json();
+                const container = document.getElementById('branches-container');
+                if (data.success && data.branches) {
+                    container.innerHTML = data.branches.map(b => `
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                            <h3 class="font-bold text-slate-800 uppercase text-sm tracking-widest mb-2">${b.branch_name}</h3>
+                            <p class="text-xs text-slate-500 mb-1">Code: <span class="font-mono font-bold">${b.branch_code}</span></p>
+                            <p class="text-xs text-slate-500 mb-4">${b.location || 'No location set'}</p>
+                            <button onclick="viewBranchInventory(${b.branch_id})" class="bg-navy text-gold px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition w-full">
+                                View Inventory
+                            </button>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                showToast("Failed to load branches", "error");
+            }
+        }
+
+        async function viewBranchInventory(branchId) {
+            try {
+                const res = await fetch(`http://localhost:5000/api/branches/${branchId}/inventory`, {
+                    headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`Branch Inventory:\nTotal: ${data.stats.total_books}\nAvailable: ${data.stats.available}\nIssued: ${data.stats.issued}`);
+                }
+            } catch (err) {
+                showToast("Failed to load inventory", "error");
+            }
+        }
+
+        // ─── LOAD ANALYTICS ───
+        let charts = {};
+        async function loadAnalytics() {
+            try {
+                const res = await fetch('http://localhost:5000/api/analytics/dashboard', {
+                    headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
+                });
+                const data = await res.json();
+                if (!data.success) return;
+
+                // Department Chart
+                if (data.department_statistics) {
+                    const ctx = document.getElementById('deptChart').getContext('2d');
+                    if (charts.dept) charts.dept.destroy();
+                    charts.dept = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.department_statistics.map(d => d.department),
+                            datasets: [{
+                                label: 'Total Students',
+                                data: data.department_statistics.map(d => d.total_students),
+                                backgroundColor: '#d4af37'
+                            }, {
+                                label: 'Transactions',
+                                data: data.department_statistics.map(d => d.total_transactions),
+                                backgroundColor: '#0f172a'
+                            }]
+                        },
+                        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+                    });
+                }
+
+                // Monthly Chart
+                if (data.monthly_summary) {
+                    const ctx = document.getElementById('monthlyChart').getContext('2d');
+                    if (charts.monthly) charts.monthly.destroy();
+                    charts.monthly = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: data.monthly_summary.map(m => m.month),
+                            datasets: [{
+                                label: 'Issues',
+                                data: data.monthly_summary.map(m => m.issues),
+                                borderColor: '#d4af37',
+                                backgroundColor: 'rgba(212,175,55,0.1)',
+                                fill: true
+                            }, {
+                                label: 'Returns',
+                                data: data.monthly_summary.map(m => m.returns),
+                                borderColor: '#0f172a',
+                                backgroundColor: 'rgba(15,23,42,0.1)',
+                                fill: true
+                            }]
+                        },
+                        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+                    });
+                }
+
+                // Fine Trends Chart
+                if (data.fine_trends) {
+                    const ctx = document.getElementById('fineChart').getContext('2d');
+                    if (charts.fine) charts.fine.destroy();
+                    charts.fine = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.fine_trends.map(f => f.month),
+                            datasets: [{
+                                label: 'Total Fines (PKR)',
+                                data: data.fine_trends.map(f => f.total_fines),
+                                backgroundColor: '#ef4444'
+                            }]
+                        },
+                        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+                    });
+                }
+
+                // Active Students
+                const activeList = document.getElementById('active-students-list');
+                if (data.most_active_students) {
+                    activeList.innerHTML = data.most_active_students.map((s, i) => `
+                        <div class="flex items-center gap-3 p-2 bg-slate-50 rounded-lg">
+                            <span class="w-6 h-6 bg-navy text-gold rounded-full flex items-center justify-center text-xs font-bold">${i + 1}</span>
+                            <div class="flex-1">
+                                <p class="text-xs font-bold text-slate-800">${s.name}</p>
+                                <p class="text-[10px] text-slate-500">${s.department}</p>
+                            </div>
+                            <span class="text-xs font-bold text-gold">${s.borrow_count} loans</span>
+                        </div>
+                    `).join('');
+                }
+
+            } catch (err) {
+                showToast("Failed to load analytics", "error");
+            }
+        }
+
+        // ─── LOAD LOGS ───
+        async function loadLogs() {
+            try {
+                const [logsRes, securityRes] = await Promise.all([
+                    fetch('http://localhost:5000/api/admin/logs', {
+                        headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
+                    }),
+                    fetch('http://localhost:5000/api/admin/security/failed-logins', {
+                        headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
+                    })
+                ]);
+
+                const logsData = await logsRes.json();
+                const securityData = await securityRes.json();
+
+                // Activity Logs
+                const logsBody = document.getElementById('activity-logs-body');
+                if (logsData.success && logsData.logs) {
+                    logsBody.innerHTML = logsData.logs.map(log => `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="p-4 text-xs font-bold ${log.severity === 'ERROR' || log.severity === 'CRITICAL' ? 'text-red-600' : log.severity === 'WARNING' ? 'text-amber-600' : 'text-slate-700'}">${log.action_type}</td>
+                            <td class="p-4 font-mono text-xs text-slate-600">${log.user_id || 'System'}</td>
+                            <td class="p-4 text-xs text-slate-500 max-w-[200px] truncate">${log.details}</td>
+                            <td class="p-4"><span class="text-[10px] font-bold uppercase px-2 py-1 rounded-full ${log.severity === 'ERROR' || log.severity === 'CRITICAL' ? 'bg-red-100 text-red-700' : log.severity === 'WARNING' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}">${log.severity}</span></td>
+                            <td class="p-4 text-xs font-mono text-slate-400">${new Date(log.timestamp).toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Failed Logins
+                const failedBody = document.getElementById('failed-logins-body');
+                if (securityData.success && securityData.failed_logins) {
+                    failedBody.innerHTML = securityData.failed_logins.map(f => `
+                        <div class="p-3 bg-red-50 border border-red-100 rounded-lg">
+                            <div class="flex justify-between items-start">
+                                <p class="text-xs font-bold text-slate-800">${f.username_attempted || 'Unknown'}</p>
+                                <span class="text-[10px] text-slate-400">${new Date(f.timestamp).toLocaleDateString()}</span>
+                            </div>
+                            <p class="text-[10px] text-red-600 mt-1">${f.reason}</p>
+                            <p class="text-[10px] text-slate-400 font-mono">IP: ${f.ip_address || 'N/A'}</p>
+                        </div>
+                    `).join('');
+                }
+
+            } catch (err) {
+                showToast("Failed to load logs", "error");
+            }
+        }
+
+        // ─── BACKUP FUNCTIONS ───
+        async function triggerBackup() {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/backup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${ADMIN_TOKEN}`
+                    },
+                    body: JSON.stringify({ backup_type: 'MANUAL' })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("Backup triggered successfully!", "success");
+                    loadBackupHistory();
+                } else {
+                    showToast(data.message || "Backup failed", "error");
+                }
+            } catch (err) {
+                showToast("Server error during backup", "error");
+            }
+        }
+
+        async function triggerArchive() {
+            const months = document.getElementById('archiveMonths').value;
+            if (!confirm(`Archive transactions older than ${months} months? This action cannot be undone.`)) return;
+            
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/archive', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${ADMIN_TOKEN}`
+                    },
+                    body: JSON.stringify({ months: parseInt(months) })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("Data archived successfully!", "success");
+                } else {
+                    showToast(data.message || "Archival failed", "error");
+                }
+            } catch (err) {
+                showToast("Server error during archival", "error");
+            }
+        }
+
+        async function loadBackupHistory() {
+            try {
+                const res = await fetch('http://localhost:5000/api/admin/backups', {
+                    headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
+                });
+                const data = await res.json();
+                const tbody = document.getElementById('backup-history-body');
+                if (data.success && data.backups && data.backups.length > 0) {
+                    tbody.innerHTML = data.backups.map(b => `
+                        <tr>
+                            <td class="p-4 text-xs text-slate-600">${new Date(b.created_at).toLocaleString()}</td>
+                            <td class="p-4 text-xs font-bold text-slate-700">${b.backup_type}</td>
+                            <td class="p-4"><span class="text-[10px] font-bold uppercase px-2 py-1 rounded-full ${b.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">${b.status}</span></td>
+                            <td class="p-4 text-xs font-mono text-slate-500 truncate max-w-[200px]">${b.file_path || 'N/A'}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">No backups found.</td></tr>`;
+                }
+            } catch (err) {
+                showToast("Failed to load backup history", "error");
+            }
+        }
+
+        // ─── LOGOUT ───
+        function handleLogout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminRole');
+            localStorage.removeItem('admin_name');
+            localStorage.removeItem('user_id');
+            localStorage.removeItem('user_name');
+            localStorage.removeItem('user_role');
+            window.location.href = 'index.html';
+        }
  
+        // ─── INITIALIZE ───
         loadAdminData();
         loadBooks();
     </script>

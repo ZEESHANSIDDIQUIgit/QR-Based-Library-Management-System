@@ -1,10 +1,11 @@
-const mysql = require('mysql2');
-
+const mysql = require('mysql2/promise');
 const pool = mysql.createPool({
     host: 'localhost',
     user: 'root',
-    password: 'SQLmzs2006', // Ensure this matches your XAMPP password (often empty)
-    database: 'ssuet_qr_library'
+    password: '----',          // your MySQL password
+    database: 'ssuet_qr_library',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
-
-module.exports = pool.promise();
+module.exports = pool;

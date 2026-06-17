@@ -179,9 +179,42 @@
         }
         .btn-stop:hover { background: #b91c1c; }
         .btn-stop:active { transform: scale(0.98); }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            min-width: 300px;
+            max-width: 400px;
+            padding: 14px 18px;
+            border-radius: 10px;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            transform: translateX(120%);
+            transition: transform 0.4s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .toast.show { transform: translateX(0); }
+        .toast.success { background: #059669; }
+        .toast.error { background: #dc2626; }
+        .toast.warning { background: #d97706; }
     </style>
 </head>
 <body class="bg-garlic min-h-screen flex flex-col font-sans text-slate-800">
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <nav class="bg-slate-950 text-white p-6 shadow-md border-b-4 border-emerald-800">
         <div class="max-w-5xl mx-auto flex justify-between items-center">
@@ -261,7 +294,26 @@
         let isCameraRunning   = false;
         let currentMode       = 'camera';
 
+        // Auth check
+        const token = localStorage.getItem("token");
+        if (!token) {
+            window.location.href = "studentlogin.html";
+        }
+
         window.addEventListener('DOMContentLoaded', () => switchMode('camera'));
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${type === 'success' ? '✓' : type === 'error' ? '✕' : '⚠'}</span> ${message}`;
+            container.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.add('show'));
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }, 4000);
+        }
 
         function switchMode(mode) {
             currentMode = mode;
@@ -372,7 +424,7 @@
         }
 
         function onScanSuccess(decodedText) {
-            alert("✅ Scanned: " + decodedText);
+            showToast("QR detected: " + decodedText, "success");
             const box = document.getElementById('preview-box');
 
             box.classList.add('scan-success');
@@ -426,21 +478,25 @@
                 setTimeout(() => process(decodedText), 400);
             } catch (err) {
                 setStatus('error', 'Could not read QR. Use a clearer image.');
+                showToast("Could not read QR code from image", "error");
             }
         }
 
         async function process(val) {
             if (!val || !val.trim()) {
                 setStatus('error', 'Empty QR value — scan again.');
+                showToast("Empty QR value. Please scan again.", "error");
                 return;
             }
 
             const token = localStorage.getItem("token");
             if (!token) {
-                alert("Session expired. Please log in again.");
-                window.location.href = "studentlogin.html";
+                showToast("Session expired. Please log in again.", "error");
+                setTimeout(() => window.location.href = "studentlogin.html", 2000);
                 return;
             }
+
+            setStatus('active', 'Processing transaction…');
 
             try {
                 const res = await fetch("http://localhost:5000/api/transactions/issue", {
@@ -449,16 +505,22 @@
                         "Content-Type": "application/json",
                         "Authorization": `Bearer ${token}`
                     },
-                    body: JSON.stringify({ qr_code: val })
+                    body: JSON.stringify({ qr_code: val.trim() })
                 });
 
                 const data = await res.json();
-                alert(data.message || "Transaction processed.");
-                if (data.success) window.location.href = "dashboard.html";
-                else setStatus('error', data.message || 'Transaction failed.');
+
+                if (data.success) {
+                    showToast(`${data.message} Due: ${new Date(data.due_date).toLocaleDateString()}`, "success");
+                    setTimeout(() => window.location.href = "dashboard.html", 2000);
+                } else {
+                    setStatus('error', data.message || 'Transaction failed.');
+                    showToast(data.message || "Transaction failed", "error");
+                }
             } catch (err) {
                 console.error("Fetch error:", err);
                 setStatus('error', 'Server unreachable. Is the backend running?');
+                showToast("Server unreachable. Please check your connection.", "error");
             }
         }
 

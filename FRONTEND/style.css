@@ -109,3 +109,141 @@ tr:last-child td { border: none; }
     background: #fffbeb; border: 1px dashed var(--ssuet-accent);
     border-radius: 12px; padding: 16px; margin-bottom: 16px;
 }
+
+/* ============================================
+   NEW: Toast Notification Styles
+   (for non-blocking alerts across all pages)
+   ============================================ */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: all;
+    min-width: 300px;
+    max-width: 400px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    transform: translateX(120%);
+    opacity: 0;
+    transition: transform 0.4s ease, opacity 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.toast-success { background: var(--ssuet-success, #059669); }
+.toast-error { background: var(--ssuet-danger, #dc2626); }
+.toast-warning { background: var(--ssuet-warning, #d97706); }
+.toast-info { background: var(--ssuet-info, #2563eb); }
+
+/* ============================================
+   NEW: Notification Badge Styles
+   (for dashboard notification bell)
+   ============================================ */
+.notif-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 18px;
+    height: 18px;
+    background: var(--ssuet-danger, #dc2626);
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+}
+
+/* ============================================
+   NEW: Status Indicator Styles
+   (for user status badges)
+   ============================================ */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.status-active { background: #d1fae5; color: #065f46; }
+.status-inactive { background: #f1f5f9; color: #64748b; }
+.status-suspended { background: #fee2e2; color: #991b1b; }
+
+/* ============================================
+   NEW: Loading Spinner
+   ============================================ */
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #e2e8f0;
+    border-top-color: var(--ssuet-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   NEW: Modal Overlay
+   ============================================ */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 50;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+}
+
+/* ============================================
+   Responsive Utilities
+   ============================================ */
+@media (max-width: 768px) {
+    .layout-split { grid-template-columns: 1fr; }
+    .metrics-row { grid-template-columns: 1fr; }
+    .navbar { flex-direction: column; gap: 10px; text-align: center; }
+}
