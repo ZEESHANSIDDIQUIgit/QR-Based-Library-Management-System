@@ -756,44 +756,81 @@ app.post('/api/books/transfer/:id/complete', authenticateToken, requireRole('adm
 // =========================
 
 app.get('/api/analytics/dashboard', authenticateToken, requireRole('admin', 'librarian'), async (req, res) => {
+    const results = {
+        success: true,
+        metrics: {},
+        most_active_students: [],
+        popular_books: [],
+        peak_timings: [],
+        department_statistics: [],
+        monthly_summary: [],
+        fine_trends: [],
+        defaulters_list: [],
+        recent_logs: []
+    };
+
+    const runQuery = async (name, sql, params = []) => {
+        try {
+            const [rows] = await db.query(sql, params);
+            return rows;
+        } catch (err) {
+            console.error(`ANALYTICS QUERY FAILED [${name}]:`, err.message);
+            return null; // Return null so we know it failed
+        }
+    };
+
     try {
-        const [issued] = await db.query("SELECT COUNT(*) as c FROM transactions WHERE status = 'ISSUED'");
-        const [def] = await db.query("SELECT COUNT(*) as c FROM transactions WHERE status = 'ISSUED' AND due_date < CURDATE()");
-        const [returnedFines] = await db.query("SELECT COALESCE(SUM(fine_amount), 0) as c FROM transactions WHERE status = 'RETURNED'");
-        const [liveFines] = await db.query(`
+        // Basic metrics (these usually work)
+        const issued = await runQuery('issued', "SELECT COUNT(*) as c FROM transactions WHERE status = 'ISSUED'");
+        const def = await runQuery('defaulters', "SELECT COUNT(*) as c FROM transactions WHERE status = 'ISSUED' AND due_date < CURDATE()");
+        const returnedFines = await runQuery('returnedFines', "SELECT COALESCE(SUM(fine_amount), 0) as c FROM transactions WHERE status = 'RETURNED'");
+        const liveFines = await runQuery('liveFines', `
             SELECT COALESCE(SUM(GREATEST(DATEDIFF(CURDATE(), due_date), 0) * 50), 0) as c
             FROM transactions WHERE status = 'ISSUED' AND due_date < CURDATE()
         `);
-        const [inventory] = await db.query("SELECT COUNT(*) as c FROM books WHERE availability = 'AVAILABLE'");
-        const [totalBooks] = await db.query("SELECT COUNT(*) as c FROM books");
+        const inventory = await runQuery('inventory', "SELECT COUNT(*) as c FROM books WHERE availability = 'AVAILABLE'");
+        const totalBooks = await runQuery('totalBooks', "SELECT COUNT(*) as c FROM books");
 
-        const [activeStudents] = await db.query(`
+        if (issued) results.metrics.total_issued = issued[0].c;
+        if (def) results.metrics.active_defaulters = def[0].c;
+        if (returnedFines && liveFines) results.metrics.total_fines = parseFloat(returnedFines[0].c) + parseFloat(liveFines[0].c);
+        if (inventory) results.metrics.available_inventory = inventory[0].c;
+        if (totalBooks) results.metrics.total_books = totalBooks[0].c;
+
+        // Active students
+        const activeStudents = await runQuery('activeStudents', `
             SELECT u.user_id, u.name, u.department, COUNT(t.transaction_id) as borrow_count
             FROM users u
             JOIN transactions t ON u.user_id = t.student_id
             WHERE t.status = 'RETURNED'
-            GROUP BY u.user_id
+            GROUP BY u.user_id, u.name, u.department
             ORDER BY borrow_count DESC
             LIMIT 10
         `);
+        if (activeStudents) results.most_active_students = activeStudents;
 
-        const [popularBooks] = await db.query(`
+        // Popular books
+        const popularBooks = await runQuery('popularBooks', `
             SELECT title, author, borrow_count 
             FROM books 
             ORDER BY borrow_count DESC 
             LIMIT 10
         `);
+        if (popularBooks) results.popular_books = popularBooks;
 
-        const [peakTimings] = await db.query(`
-            SELECT HOUR(created_at) as hour, COUNT(*) as count
+        // Peak timings - FIX: use issue_date instead of created_at
+        const peakTimings = await runQuery('peakTimings', `
+            SELECT HOUR(issue_date) as hour, COUNT(*) as count
             FROM transactions
             WHERE issue_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-            GROUP BY HOUR(created_at)
+            GROUP BY HOUR(issue_date)
             ORDER BY count DESC
             LIMIT 5
         `);
+        if (peakTimings) results.peak_timings = peakTimings;
 
-        const [deptStats] = await db.query(`
+        // Department statistics - FIX: include all GROUP BY columns
+        const deptStats = await runQuery('deptStats', `
             SELECT 
                 u.department,
                 COUNT(DISTINCT u.user_id) as total_students,
@@ -804,8 +841,10 @@ app.get('/api/analytics/dashboard', authenticateToken, requireRole('admin', 'lib
             WHERE u.role_id = 1
             GROUP BY u.department
         `);
+        if (deptStats) results.department_statistics = deptStats;
 
-        const [monthlySummary] = await db.query(`
+        // Monthly summary
+        const monthlySummary = await runQuery('monthlySummary', `
             SELECT 
                 DATE_FORMAT(issue_date, '%Y-%m') as month,
                 COUNT(*) as issues,
@@ -816,8 +855,10 @@ app.get('/api/analytics/dashboard', authenticateToken, requireRole('admin', 'lib
             GROUP BY DATE_FORMAT(issue_date, '%Y-%m')
             ORDER BY month DESC
         `);
+        if (monthlySummary) results.monthly_summary = monthlySummary;
 
-        const [fineTrends] = await db.query(`
+        // Fine trends
+        const fineTrends = await runQuery('fineTrends', `
             SELECT 
                 DATE_FORMAT(return_date, '%Y-%m') as month,
                 COALESCE(SUM(fine_amount), 0) as total_fines,
@@ -828,41 +869,29 @@ app.get('/api/analytics/dashboard', authenticateToken, requireRole('admin', 'lib
             GROUP BY DATE_FORMAT(return_date, '%Y-%m')
             ORDER BY month DESC
         `);
+        if (fineTrends) results.fine_trends = fineTrends;
 
-        const [defaultersList] = await db.query(`
+        // Defaulters list
+        const defaultersList = await runQuery('defaultersList', `
             SELECT DISTINCT u.user_id, u.name, u.department, u.semester,
                 COUNT(t.transaction_id) as overdue_count,
                 SUM(GREATEST(DATEDIFF(CURDATE(), t.due_date), 0) * 50) as total_fine
             FROM users u
             INNER JOIN transactions t ON u.user_id = t.student_id
             WHERE t.status = 'ISSUED' AND t.due_date < CURDATE()
-            GROUP BY u.user_id
+            GROUP BY u.user_id, u.name, u.department, u.semester
             ORDER BY total_fine DESC
         `);
+        if (defaultersList) results.defaulters_list = defaultersList;
 
-        const [logs] = await db.query("SELECT * FROM activity_logs ORDER BY timestamp DESC LIMIT 20");
+        // Recent logs
+        const logs = await runQuery('logs', "SELECT * FROM activity_logs ORDER BY timestamp DESC LIMIT 20");
+        if (logs) results.recent_logs = logs;
 
-        res.json({
-            success: true,
-            metrics: {
-                total_issued: issued[0].c,
-                active_defaulters: def[0].c,
-                total_fines: parseFloat(returnedFines[0].c) + parseFloat(liveFines[0].c),
-                available_inventory: inventory[0].c,
-                total_books: totalBooks[0].c
-            },
-            most_active_students: activeStudents,
-            popular_books: popularBooks,
-            peak_timings: peakTimings,
-            department_statistics: deptStats,
-            monthly_summary: monthlySummary,
-            fine_trends: fineTrends,
-            defaulters_list: defaultersList,
-            recent_logs: logs
-        });
+        res.json(results);
     } catch (err) {
-        console.error("ANALYTICS ERROR:", err);
-        res.status(500).json({ success: false, message: "Analytics error." });
+        console.error("ANALYTICS FATAL ERROR:", err);
+        res.status(500).json({ success: false, message: "Analytics error: " + err.message });
     }
 });
 

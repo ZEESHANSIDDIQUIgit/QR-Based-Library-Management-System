@@ -827,99 +827,122 @@
 
         // ─── LOAD ANALYTICS ───
         let charts = {};
-        async function loadAnalytics() {
-            try {
-                const res = await fetch('http://localhost:5000/api/analytics/dashboard', {
-                    headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
-                });
-                const data = await res.json();
-                if (!data.success) return;
-
-                // Department Chart
-                if (data.department_statistics) {
-                    const ctx = document.getElementById('deptChart').getContext('2d');
-                    if (charts.dept) charts.dept.destroy();
-                    charts.dept = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: data.department_statistics.map(d => d.department),
-                            datasets: [{
-                                label: 'Total Students',
-                                data: data.department_statistics.map(d => d.total_students),
-                                backgroundColor: '#d4af37'
-                            }, {
-                                label: 'Transactions',
-                                data: data.department_statistics.map(d => d.total_transactions),
-                                backgroundColor: '#0f172a'
-                            }]
-                        },
-                        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-                    });
-                }
-
-                // Monthly Chart
-                if (data.monthly_summary) {
-                    const ctx = document.getElementById('monthlyChart').getContext('2d');
-                    if (charts.monthly) charts.monthly.destroy();
-                    charts.monthly = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: data.monthly_summary.map(m => m.month),
-                            datasets: [{
-                                label: 'Issues',
-                                data: data.monthly_summary.map(m => m.issues),
-                                borderColor: '#d4af37',
-                                backgroundColor: 'rgba(212,175,55,0.1)',
-                                fill: true
-                            }, {
-                                label: 'Returns',
-                                data: data.monthly_summary.map(m => m.returns),
-                                borderColor: '#0f172a',
-                                backgroundColor: 'rgba(15,23,42,0.1)',
-                                fill: true
-                            }]
-                        },
-                        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-                    });
-                }
-
-                // Fine Trends Chart
-                if (data.fine_trends) {
-                    const ctx = document.getElementById('fineChart').getContext('2d');
-                    if (charts.fine) charts.fine.destroy();
-                    charts.fine = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: data.fine_trends.map(f => f.month),
-                            datasets: [{
-                                label: 'Total Fines (PKR)',
-                                data: data.fine_trends.map(f => f.total_fines),
-                                backgroundColor: '#ef4444'
-                            }]
-                        },
-                        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-                    });
-                }
-
-                // Active Students
-                const activeList = document.getElementById('active-students-list');
-                if (data.most_active_students) {
-                    activeList.innerHTML = data.most_active_students.map((s, i) => `
-                        <div class="flex items-center gap-3 p-2 bg-slate-50 rounded-lg">
-                            <span class="w-6 h-6 bg-navy text-gold rounded-full flex items-center justify-center text-xs font-bold">${i + 1}</span>
-                            <div class="flex-1">
-                                <p class="text-xs font-bold text-slate-800">${s.name}</p>
-                                <p class="text-[10px] text-slate-500">${s.department}</p>
-                            </div>
-                            <span class="text-xs font-bold text-gold">${s.borrow_count} loans</span>
-                        </div>
-                    `).join('');
-                }
-
-            } catch (err) {
-                showToast("Failed to load analytics", "error");
-            }
+       async function loadAnalytics() {
+    try {
+        const res = await fetch('http://localhost:5000/api/analytics/dashboard', {
+            headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
+        });
+        const data = await res.json();
+        
+        console.log("Analytics API Response:", data);  // ← ADD THIS
+        
+        if (!data.success) {
+            showToast("Analytics API error: " + (data.message || "Unknown"), "error");
+            return;
         }
+
+        // Check if data exists
+        if (!data.department_statistics || data.department_statistics.length === 0) {
+            showToast("No department statistics available", "warning");
+        }
+        if (!data.monthly_summary || data.monthly_summary.length === 0) {
+            showToast("No monthly summary data available", "warning");
+        }
+        if (!data.fine_trends || data.fine_trends.length === 0) {
+            showToast("No fine trend data available", "warning");
+        }
+        if (!data.most_active_students || data.most_active_students.length === 0) {
+            showToast("No active student data available", "warning");
+        }
+
+        // Department Chart
+        if (data.department_statistics && data.department_statistics.length > 0) {
+            const ctx = document.getElementById('deptChart').getContext('2d');
+            if (charts.dept) charts.dept.destroy();
+            charts.dept = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.department_statistics.map(d => d.department),
+                    datasets: [{
+                        label: 'Total Students',
+                        data: data.department_statistics.map(d => d.total_students),
+                        backgroundColor: '#d4af37'
+                    }, {
+                        label: 'Transactions',
+                        data: data.department_statistics.map(d => d.total_transactions),
+                        backgroundColor: '#0f172a'
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        // Monthly Chart
+        if (data.monthly_summary && data.monthly_summary.length > 0) {
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            if (charts.monthly) charts.monthly.destroy();
+            charts.monthly = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.monthly_summary.map(m => m.month),
+                    datasets: [{
+                        label: 'Issues',
+                        data: data.monthly_summary.map(m => m.issues),
+                        borderColor: '#d4af37',
+                        backgroundColor: 'rgba(212,175,55,0.1)',
+                        fill: true
+                    }, {
+                        label: 'Returns',
+                        data: data.monthly_summary.map(m => m.returns),
+                        borderColor: '#0f172a',
+                        backgroundColor: 'rgba(15,23,42,0.1)',
+                        fill: true
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        // Fine Trends Chart
+        if (data.fine_trends && data.fine_trends.length > 0) {
+            const ctx = document.getElementById('fineChart').getContext('2d');
+            if (charts.fine) charts.fine.destroy();
+            charts.fine = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.fine_trends.map(f => f.month),
+                    datasets: [{
+                        label: 'Total Fines (PKR)',
+                        data: data.fine_trends.map(f => f.total_fines),
+                        backgroundColor: '#ef4444'
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        // Active Students
+        const activeList = document.getElementById('active-students-list');
+        if (data.most_active_students && data.most_active_students.length > 0) {
+            activeList.innerHTML = data.most_active_students.map((s, i) => `
+                <div class="flex items-center gap-3 p-2 bg-slate-50 rounded-lg">
+                    <span class="w-6 h-6 bg-navy text-gold rounded-full flex items-center justify-center text-xs font-bold">${i + 1}</span>
+                    <div class="flex-1">
+                        <p class="text-xs font-bold text-slate-800">${s.name}</p>
+                        <p class="text-[10px] text-slate-500">${s.department}</p>
+                    </div>
+                    <span class="text-xs font-bold text-gold">${s.borrow_count} loans</span>
+                </div>
+            `).join('');
+        } else {
+            activeList.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No active student data available</p>';
+        }
+
+    } catch (err) {
+        console.error("Analytics Load Error:", err);
+        showToast("Failed to load analytics: " + err.message, "error");
+    }
+}
 
         // ─── LOAD LOGS ───
         async function loadLogs() {
