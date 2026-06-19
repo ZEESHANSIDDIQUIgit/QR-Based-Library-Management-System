@@ -899,23 +899,47 @@ app.get('/api/analytics/dashboard', authenticateToken, requireRole('admin', 'lib
 // 7. USER MANAGEMENT APIs
 // =========================
 
-// GET all users (Admin only)
-app.get('/api/users', authenticateToken, requireRole('admin'), async (req, res) => {
+// GET all users - Admin sees all, Librarian sees only students (read-only view)
+app.get('/api/users', authenticateToken, requireRole('admin', 'librarian'), async (req, res) => {
     try {
-        const [users] = await db.query(`
+        let sql = `
             SELECT u.user_id, u.name, u.email, u.department, u.semester, u.status, 
                    u.failed_login_attempts, u.last_login, r.role_name
             FROM users u
             JOIN roles r ON u.role_id = r.role_id
-            ORDER BY u.created_at DESC
-        `);
-        res.json({ success: true, users });
+        `;
+        const params = [];
+
+        // If librarian, only show students (role_id = 1)
+        if (req.user.role === 'librarian') {
+            sql += " WHERE r.role_name = 'student'";
+        }
+
+        sql += " ORDER BY u.created_at DESC";
+
+        const [users] = await db.query(sql, params);
+        
+        // Add permissions flag so frontend knows what to show/hide
+        const response = {
+            success: true,
+            users,
+            permissions: {
+                can_edit: req.user.role === 'admin',
+                can_suspend: req.user.role === 'admin',
+                allowed_statuses: req.user.role === 'admin' 
+                    ? ['ACTIVE', 'INACTIVE', 'SUSPENDED'] 
+                    : ['ACTIVE', 'INACTIVE']
+            }
+        };
+        
+        res.json(response);
     } catch (err) {
+        console.error("FETCH USERS ERROR:", err);
         res.status(500).json({ success: false, message: "Failed to fetch users." });
     }
 });
 
-// UPDATE user status
+// UPDATE user status - Admin only (full control: ACTIVE, INACTIVE, SUSPENDED)
 app.put('/api/users/:id/status', authenticateToken, requireRole('admin'), async (req, res) => {
     const { status } = req.body;
     const userId = req.params.id;
@@ -931,6 +955,54 @@ app.put('/api/users/:id/status', authenticateToken, requireRole('admin'), async 
         res.json({ success: true, message: `User status updated to ${status}.` });
     } catch (err) {
         res.status(500).json({ success: false, message: "Failed to update user status." });
+    }
+});
+
+// TOGGLE user active/inactive - Librarian only (can only toggle between ACTIVE and INACTIVE)
+app.put('/api/users/:id/toggle-status', authenticateToken, requireRole('librarian'), async (req, res) => {
+    const userId = req.params.id;
+
+    try {
+        // First check if target user is a student
+        const [targetUser] = await db.query(
+            `SELECT u.status, r.role_name FROM users u 
+             JOIN roles r ON u.role_id = r.role_id 
+             WHERE u.user_id = ?`,
+            [userId]
+        );
+
+        if (targetUser.length === 0) {
+            return res.status(404).json({ success: false, message: "User not found." });
+        }
+
+        if (targetUser[0].role_name !== 'student') {
+            return res.status(403).json({ success: false, message: "Librarians can only modify student accounts." });
+        }
+
+        // Librarian can only toggle between ACTIVE and INACTIVE
+        const currentStatus = targetUser[0].status;
+        let newStatus;
+
+        if (currentStatus === 'ACTIVE') {
+            newStatus = 'INACTIVE';
+        } else if (currentStatus === 'INACTIVE') {
+            newStatus = 'ACTIVE';
+        } else {
+            // If SUSPENDED or any other status, librarian cannot change it
+            return res.status(403).json({ 
+                success: false, 
+                message: "Cannot modify this account status. Contact admin." 
+            });
+        }
+
+        await db.query("UPDATE users SET status = ? WHERE user_id = ?", [newStatus, userId]);
+        await logSystemAction("USER_STATUS_TOGGLED", req.user.id, 
+            `Librarian toggled ${userId} status to ${newStatus}`, 'INFO', req);
+        
+        res.json({ success: true, message: `User status updated to ${newStatus}.`, new_status: newStatus });
+    } catch (err) {
+        console.error("TOGGLE STATUS ERROR:", err);
+        res.status(500).json({ success: false, message: "Failed to toggle user status." });
     }
 });
 
