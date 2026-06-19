@@ -1,57 +1,99 @@
-# 📚 QR-Based Smart Library Management System (LMS)
+# 📚 SSUET QR-Based Smart Library Management System
 
-A secure, full-stack library management system featuring QR-code self-issue/return pipelines, live web-camera scanning, an automated student ledger, and an administrative analytics panel. Built with Node.js, Express, MySQL, and Tailwind CSS.
+A secure, full-stack library management system featuring QR-code self-issue/return pipelines, live web-camera scanning, an automated student ledger, AI-powered book recommendations, multi-branch inventory management, and a comprehensive administrative analytics panel. Built with Node.js, Express, MySQL, and Tailwind CSS.
 
 ---
 
 ## 🚀 Key Feature Set
 
-### 1. 🔑 Secure Authentication & Middlewares
-- **JWT Session Validation:** Uses JSON Web Tokens (JWT) to secure user requests, managing distinct student and librarian role hierarchies.
-- **Log Auditing:** Automatically logs system actions (like book issues or returns) to keep a secure history of activities.
+### 1. 🔑 Secure Authentication & Role-Based Access Control (RBAC)
+- **JWT Session Validation:** Uses JSON Web Tokens (JWT) to secure all API endpoints.
+- **Unified User Management:** Single `users` table with role-based access (Student, Librarian, Admin).
+- **Account Security:** Failed login tracking, automatic account suspension after 5 attempts.
+- **Log Auditing:** Comprehensive activity logs with IP tracking and severity levels.
 
 ### 2. 📸 QR-Code Circulation Module
-- **Live Webcam Scanning:** Uses the HTML5-QRCode library for fast camera decoding directly within the browser interface.
-- **Image Upload Decoding:** Supports local file-upload scanning as an alternative for low-resolution or fixed-focus webcams.
-- **Data Sanitization:** Implements backend trimming to clean trailing whitespaces and newline characters from scanned code strings, preventing database mismatches.
-- **Keyboard Fallback:** Features manual input verification if physical camera scanning is unavailable.
+- **Live Webcam Scanning:** Uses the HTML5-QRCode library for fast camera decoding.
+- **Image Upload Decoding:** Supports local file-upload scanning as an alternative.
+- **Data Sanitization:** Backend trimming to clean QR code strings.
+- **Keyboard Fallback:** Manual input verification if camera is unavailable.
 
 ### 3. 📊 Interactive Student Dashboard
-- **Active Allocations Ledger:** Tracks active transaction IDs, check-out dates, and return due dates dynamically.
-- **Fine Management:** Automatically calculates overdue fines based on due dates and updates account balances.
-- **AI Recommender Module:** Lists personalized academic recommendations. It features:
-  - **Dynamic Filtering:** Automatically filters out books that are currently issued to the logged-in student.
-  - **Infinite Auto-Scroll:** An automated vertical scroll-loop that pauses when hovered over for easier readability.
+- **Active Loans Ledger:** Real-time tracking of issued books with due dates.
+- **Fine Management:** Automatic overdue fine calculation (PKR 50/day).
+- **Payment History:** Track all fine payments and outstanding balances.
+- **AI Recommender Module:** Personalized book recommendations based on:
+  - Borrowing history
+  - Department/semester matching
+  - Popular books in the library
+- **Infinite Auto-Scroll:** Automated recommendation carousel with hover pause.
 
 ### 4. 📈 Admin Analytics Terminal
-- **Core Library Statistics:** Real-time counters showing total checked-out books, active defaulters, and total unpaid fines.
-- **Daily Auditing:** Tracks daily issue and return counts.
-- **Defaulters Audit:** Generates active lists of students with overdue books with complete contact and class details.
+- **Real-Time Metrics:** Total issued books, active defaulters, aggregated fines, inventory stock.
+- **Visual Analytics:** Chart.js integration for:
+  - Department statistics (bar charts)
+  - Monthly issue/return trends (line charts)
+  - Fine trends over time
+  - Most active students leaderboard
+- **Defaulters Directory:** Active listing of overdue students with fine clearing.
+- **System Audit Trail:** Live database activity logs with severity indicators.
+
+### 5. 🏢 Multi-Branch Support
+- **Branch Management:** Multiple library locations with separate inventories.
+- **Book Transfers:** Inter-branch book transfer workflow with status tracking.
+
+### 6. 💰 Fine & Payment System
+- **Automatic Fine Calculation:** PKR 50 per overdue day.
+- **Fine Payments:** Cash/online payment processing by librarians.
+- **Fine Forgiveness:** Admin can clear student fines.
+
+### 7. 🛡️ Security & Backup
+- **Failed Login Monitoring:** Tracks and displays brute force attempts.
+- **Database Backup:** Manual backup trigger with history logging.
+- **Data Archival:** Archive old transactions to improve performance.
 
 ---
 
 ## 🛠️ Technology Stack
 
-- **Backend:** Node.js, Express, MySQL, `jsonwebtoken`, `cors`
-- **Frontend:** HTML5, CSS3, Tailwind CSS, HTML5-QRCode library
+| Layer | Technologies |
+|-------|-------------|
+| **Backend** | Node.js, Express.js, MySQL, JWT, bcrypt, CORS |
+| **Frontend** | HTML5, CSS3, Tailwind CSS, Chart.js, HTML5-QRCode |
+| **Database** | MySQL 8.0 with relational schema |
 
 ---
 
 ## 📁 Database Schema Reference
 
-The system relies on five main relational database tables in MySQL:
+The system uses a normalized relational schema with 15+ tables:
 
-1. **`librarians`**: Stores admin credentials, names, and access IDs.
-2. **`students`**: Stores student IDs, names, email, department, semester, and account status (`ACTIVE` or `BLOCKED`).
-3. **`books`**: Stores catalog items, including titles, authors, categories, unique QR codes, availability, and borrow counts.
-4. **`transactions`**: Stores transaction records, linking students to books with issue dates, due dates, return dates, and fine amounts.
-5. **`activity_logs`**: Stores system action audits.
+| Table | Purpose |
+|-------|---------|
+| `roles` | User role definitions (student, librarian, admin) |
+| `users` | Unified user accounts with RBAC |
+| `branches` | Library branch locations |
+| `categories` | Book subject categories |
+| `books` | Inventory with QR codes and availability |
+| `book_transfers` | Inter-branch transfer tracking |
+| `transactions` | Issue/return records with fine tracking |
+| `fine_payments` | Payment processing history |
+| `activity_logs` | System audit trail |
+| `failed_logins` | Security monitoring |
+| `notifications` | User alerts and reminders |
+| `backup_logs` | Backup operation history |
+| `archived_transactions` | Historical data storage |
 
 ---
 
 ## ⚙️ Installation & Local Setup
 
+### Prerequisites
+- Node.js (v16+)
+- MySQL 8.0+
+- npm or yarn
+
 ### 1. Clone & Navigate
 ```bash
-git clone <your-repository-url>
-cd QR-LIBRARY
+git clone https://github.com/ZEESHANSIDDIQUIgit/QR-Based-Library-Management-System.git
+cd QR-Based-Library-Management-System
