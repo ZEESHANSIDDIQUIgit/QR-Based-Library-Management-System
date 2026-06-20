@@ -348,14 +348,41 @@
             </div>
  
             <aside class="bg-slate-900 text-slate-100 p-6 rounded-xl shadow-md border border-slate-800 flex flex-col">
-                <div class="mb-5 border-b border-slate-800 pb-4">
+                <div class="mb-4 border-b border-slate-800 pb-4">
                     <h3 class="text-lg font-bold text-white flex items-center gap-2">
                         <span class="w-1 h-5 bg-ssuet-gold rounded-full"></span>
                         AI Recommender Module
                     </h3>
-                    <p class="text-xs text-slate-400 mt-0.5">Personalized recommendations based on your borrowing history and department.</p>
+                    <p class="text-xs text-slate-400 mt-0.5">Search any genre or category — powered by Google Books.</p>
                 </div>
+
+                <div class="flex gap-2 mb-3">
+                    <input
+                        id="category-input"
+                        type="text"
+                        placeholder="e.g. Mystery, Algorithms, Sci-Fi..."
+                        class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-ssuet-gold transition-colors"
+                    />
+                    <button
+                        id="category-search-btn"
+                        onclick="searchBooksByCategory()"
+                        class="bg-ssuet-gold hover:bg-ssuet-accent-hover text-white text-xs font-bold px-3.5 py-2 rounded-lg transition-colors shrink-0"
+                    >
+                        Search
+                    </button>
+                </div>
+
+                <div id="ai-status" class="hidden text-[11px] text-slate-400 mb-2"></div>
+
                 <div id="ai-body" class="space-y-3 flex-1 overflow-y-auto max-h-[280px] pr-1"></div>
+
+                <button
+                    id="ai-reset-btn"
+                    onclick="resetToDefaultRecommendations()"
+                    class="hidden mt-3 text-[10px] text-ssuet-gold hover:underline font-bold self-start"
+                >
+                    ← Back to My Recommendations
+                </button>
             </aside>
         </div>
     </main>
@@ -372,6 +399,10 @@
     if (!token) {
         window.location.href = "studentlogin.html";
     }
+
+    // Cache of the DB-driven recommendations so we can restore them
+    // after a Google Books search.
+    let defaultRecommendationsCache = [];
 
     // ── NOTIFICATION STORE ────────────────────────────────────────
     const notifStore = [];
@@ -668,21 +699,13 @@
                 const bookTitle = (book.title || "").toLowerCase().trim();
                 return !issuedTitles.includes(bookTitle);
             });
+
+            // Cache these so "Back to My Recommendations" can restore them
+            // after a Google Books search.
+            defaultRecommendationsCache = filteredRecommendations;
  
             if (filteredRecommendations.length > 0) {
-                filteredRecommendations.forEach(book => {
-                    aiBody.innerHTML += `
-                        <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 hover:border-ssuet-gold transition-all duration-300 group shadow-inner flex flex-col gap-1">
-                            <div class="flex justify-between items-start gap-2">
-                                <h4 class="font-bold text-xs text-slate-200 group-hover:text-ssuet-gold transition-colors line-clamp-1">${book.title}</h4>
-                                <span class="text-[9px] uppercase font-mono font-extrabold bg-slate-800 text-ssuet-gold px-1.5 py-0.5 rounded border border-slate-700 shrink-0">
-                                    ${book.category_name || 'AI Match'}
-                                </span>
-                            </div>
-                            <p class="text-[11px] text-slate-400 font-semibold">By ${book.author || 'Academic Faculty'}</p>
-                        </div>`;
-                });
-                initAutoScroll();
+                renderDefaultRecommendations(filteredRecommendations);
             } else {
                 aiBody.innerHTML = `
                     <div class="py-8 text-center text-slate-500 text-xs">
@@ -712,16 +735,141 @@
             });
         }
     }
+
+    // ── RENDER: DB-driven default recommendations ─────────────────
+    function renderDefaultRecommendations(books) {
+        const aiBody = document.getElementById("ai-body");
+        aiBody.innerHTML = books.map(book => `
+            <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 hover:border-ssuet-gold transition-all duration-300 group shadow-inner flex flex-col gap-1">
+                <div class="flex justify-between items-start gap-2">
+                    <h4 class="font-bold text-xs text-slate-200 group-hover:text-ssuet-gold transition-colors line-clamp-1">${book.title}</h4>
+                    <span class="text-[9px] uppercase font-mono font-extrabold bg-slate-800 text-ssuet-gold px-1.5 py-0.5 rounded border border-slate-700 shrink-0">
+                        ${book.category_name || 'AI Match'}
+                    </span>
+                </div>
+                <p class="text-[11px] text-slate-400 font-semibold">By ${book.author || 'Academic Faculty'}</p>
+            </div>`).join('');
+        initAutoScroll();
+    }
+
+    // ── CATEGORY SEARCH (Google Books, via backend proxy) ─────────
+    async function searchBooksByCategory() {
+        const input     = document.getElementById('category-input');
+        const category  = input.value.trim();
+        const aiBody     = document.getElementById('ai-body');
+        const statusEl   = document.getElementById('ai-status');
+        const resetBtn   = document.getElementById('ai-reset-btn');
+        const searchBtn  = document.getElementById('category-search-btn');
+
+        if (!category) {
+            pushNotification({
+                type: 'warning',
+                title: 'Category Required',
+                message: 'Type a genre or topic to search, e.g. "Mystery" or "Operating Systems".',
+                duration: 4000
+            });
+            return;
+        }
+
+        // stop the auto-scroll loop while we replace the contents
+        if (aiScrollInterval) { clearInterval(aiScrollInterval); aiScrollInterval = null; }
+
+        searchBtn.disabled = true;
+        searchBtn.textContent = '...';
+        statusEl.classList.remove('hidden');
+        statusEl.textContent = `Searching for "${category}"...`;
+        aiBody.innerHTML = `
+            <div class="py-8 text-center text-slate-500 text-xs animate-pulse">
+                Fetching results from Google Books...
+            </div>`;
+
+        try {
+           const res = await fetch(`http://localhost:5000/api/books/discover?category=${encodeURIComponent(category)}`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (res.status === 401) {
+                pushNotification({ type: 'error', title: 'Session Expired', message: 'Please log in again.', duration: 5000 });
+                setTimeout(() => handleLogout(), 2000);
+                return;
+            }
+
+            const data = await res.json();
+            if (!data.success) throw new Error(data.message || 'Search failed');
+
+            if (!data.books || data.books.length === 0) {
+                aiBody.innerHTML = `
+                    <div class="py-8 text-center text-slate-500 text-xs">
+                        No books found for "${category}". Try a different term.
+                    </div>`;
+                statusEl.textContent = 'No results found.';
+            } else {
+                aiBody.innerHTML = data.books.map(book => `
+                    <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 hover:border-ssuet-gold transition-all duration-300 group shadow-inner flex gap-3">
+                        ${book.thumbnail
+                            ? `<img src="${book.thumbnail}" alt="" class="w-10 h-14 object-cover rounded shrink-0 border border-slate-700">`
+                            : `<div class="w-10 h-14 rounded shrink-0 border border-slate-700 bg-slate-800 flex items-center justify-center text-slate-600 text-[9px] font-bold">N/A</div>`
+                        }
+                        <div class="flex-1 min-w-0 flex flex-col gap-1">
+                            <div class="flex justify-between items-start gap-2">
+                                <h4 class="font-bold text-xs text-slate-200 group-hover:text-ssuet-gold transition-colors line-clamp-1">${book.title}</h4>
+                                <span class="text-[9px] uppercase font-mono font-extrabold bg-slate-800 text-ssuet-gold px-1.5 py-0.5 rounded border border-slate-700 shrink-0">
+                                    ${book.category_name || 'Books'}
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 font-semibold">By ${book.author}</p>
+                        </div>
+                    </div>`).join('');
+                statusEl.textContent = `Showing ${data.books.length} result${data.books.length > 1 ? 's' : ''} for "${category}"`;
+            }
+
+            resetBtn.classList.remove('hidden');
+
+        } catch (e) {
+            console.error('Book search error:', e);
+            aiBody.innerHTML = `
+                <div class="py-8 text-center text-red-400 text-xs">
+                    Couldn't reach Google Books. Try again.
+                </div>`;
+            statusEl.textContent = '';
+            pushNotification({
+                type: 'error',
+                title: 'Search Failed',
+                message: 'Could not fetch book recommendations right now.',
+                duration: 5000
+            });
+        } finally {
+            searchBtn.disabled = false;
+            searchBtn.textContent = 'Search';
+        }
+    }
+
+    function resetToDefaultRecommendations() {
+        const statusEl  = document.getElementById('ai-status');
+        const resetBtn  = document.getElementById('ai-reset-btn');
+        document.getElementById('category-input').value = '';
+
+        if (defaultRecommendationsCache.length > 0) {
+            renderDefaultRecommendations(defaultRecommendationsCache);
+        } else {
+            document.getElementById('ai-body').innerHTML = `
+                <div class="py-8 text-center text-slate-500 text-xs">No new recommendations available.</div>`;
+        }
+        statusEl.classList.add('hidden');
+        resetBtn.classList.add('hidden');
+    }
  
     // ── AUTO-SCROLLING ENGINE ─────────────────────────────────────
+    let aiScrollInterval = null;
     function initAutoScroll() {
         const aiBody = document.getElementById("ai-body");
         if (!aiBody) return;
+        if (aiScrollInterval) { clearInterval(aiScrollInterval); aiScrollInterval = null; }
         let isHovered = false;
         aiBody.addEventListener("mouseenter", () => isHovered = true);
         aiBody.addEventListener("mouseleave", () => isHovered = false);
         let lastScrollTop = -1;
-        setInterval(() => {
+        aiScrollInterval = setInterval(() => {
             if (isHovered) return;
             aiBody.scrollTop += 1;
             if (aiBody.scrollTop === lastScrollTop || aiBody.scrollTop >= (aiBody.scrollHeight - aiBody.clientHeight)) {
@@ -743,6 +891,11 @@
         localStorage.removeItem('student_id');
         window.location.href = 'index.html';
     }
+
+    // Enter-key support for the category search box
+    document.getElementById('category-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchBooksByCategory();
+    });
  
     // Initialize
     fetchDashboard();

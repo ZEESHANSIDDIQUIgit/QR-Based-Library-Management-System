@@ -643,6 +643,56 @@ app.get('/api/recommendations', authenticateToken, async (req, res) => {
 });
 
 // =========================
+// 4B. GOOGLE BOOKS DISCOVERY
+// =========================
+const axios = require('axios');
+const GOOGLE_BOOKS_KEY = '------';
+
+app.get('/api/books/discover', authenticateToken, async (req, res) => {
+    try {
+        const { category } = req.query;
+        if (!category || category.trim() === '') {
+            return res.status(400).json({ success: false, message: 'Category is required' });
+        }
+
+        const query = encodeURIComponent(category.trim());
+
+        // Try subject search first
+        let { data } = await axios.get(
+            `https://www.googleapis.com/books/v1/volumes?q=subject:${query}&maxResults=12&orderBy=relevance&langRestrict=en&key=${GOOGLE_BOOKS_KEY}`
+        );
+
+        // Fallback to keyword search if subject returns nothing
+        if (!data.items || data.items.length === 0) {
+            ({ data } = await axios.get(
+               `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=12&orderBy=relevance&langRestrict=en&key=${GOOGLE_BOOKS_KEY}`
+            ));
+        }
+
+        if (!data.items || data.items.length === 0) {
+            return res.json({ success: true, books: [] });
+        }
+
+        const books = data.items.map(item => {
+            const info = item.volumeInfo || {};
+            return {
+                title:         info.title || 'Untitled',
+                author:        info.authors ? info.authors.join(', ') : 'Unknown Author',
+                category_name: (info.categories && info.categories[0]) || category,
+                thumbnail:     info.imageLinks?.thumbnail?.replace('http://', 'https://') || null,
+                published:     info.publishedDate || '',
+                link:          info.infoLink || '#'
+            };
+        });
+
+        res.json({ success: true, books });
+    } catch (err) {
+        console.error('Google Books discovery error:', err.message);
+        res.status(500).json({ success: false, message: 'Failed to fetch recommendations' });
+    }
+});
+
+// =========================
 // 5. MULTI-BRANCH SUPPORT
 // =========================
 
