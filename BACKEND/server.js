@@ -9,18 +9,15 @@ const app = express();
 // =========================
 // CORS CONFIGURATION
 // =========================
+// Dev-friendly: allow any port on localhost / 127.0.0.1, over http or https.
+// This avoids having to update the allowlist every time Live Server, a static
+// server, or a dev tool picks a different port (3000, 3002, 5500, 5501, etc).
+const LOCAL_ORIGIN_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        const allowed = [
-            'http://localhost:3000',
-            'http://127.0.0.1:3000',
-            'http://localhost:5500',
-            'http://127.0.0.1:5500',
-            'https://localhost:3000',
-            'https://localhost:5500'
-        ];
-        if (allowed.includes(origin)) return callback(null, true);
+        if (!origin) return callback(null, true); // non-browser tools (curl, Postman, server-to-server)
+        if (LOCAL_ORIGIN_REGEX.test(origin)) return callback(null, true);
         return callback(new Error('Not allowed by CORS'));
     },
     credentials: true
@@ -646,7 +643,7 @@ app.get('/api/recommendations', authenticateToken, async (req, res) => {
 // 4B. GOOGLE BOOKS DISCOVERY
 // =========================
 const axios = require('axios');
-const GOOGLE_BOOKS_KEY = '------';
+const GOOGLE_BOOKS_KEY = 'AIzaSyDLwPz84LJ1tsqwbe0TR5LSixV5_L_ek-w';
 
 app.get('/api/books/discover', authenticateToken, async (req, res) => {
     try {
@@ -1056,6 +1053,62 @@ app.put('/api/users/:id/toggle-status', authenticateToken, requireRole('libraria
     }
 });
 
+// RESET student password - Admin only (in-person "forgot password" flow, no email)
+app.put('/api/admin/reset-password', authenticateToken, requireRole('admin'), async (req, res) => {
+    const { student_id, new_password, confirm_password } = req.body;
+
+    if (!student_id || !new_password) {
+        return res.status(400).json({ success: false, message: "student_id and new_password are required." });
+    }
+
+    if (confirm_password !== undefined && new_password !== confirm_password) {
+        return res.status(400).json({ success: false, message: "Passwords do not match." });
+    }
+
+    if (new_password.length < 6) {
+        return res.status(400).json({ success: false, message: "Password must be at least 6 characters." });
+    }
+
+    const formattedId = student_id.toUpperCase();
+
+    try {
+        const [users] = await db.query(
+            `SELECT u.user_id, u.name, r.role_name FROM users u
+             JOIN roles r ON u.role_id = r.role_id
+             WHERE u.user_id = ?`,
+            [formattedId]
+        );
+
+        if (users.length === 0) {
+            return res.status(404).json({ success: false, message: "Student not found." });
+        }
+
+        if (users[0].role_name !== 'student') {
+            return res.status(403).json({ success: false, message: "This action is only allowed for student accounts." });
+        }
+
+        const newHash = await hashPassword(new_password);
+
+        await db.query(
+            "UPDATE users SET password_hash = ?, failed_login_attempts = 0 WHERE user_id = ?",
+            [newHash, formattedId]
+        );
+
+        await logSystemAction(
+            "PASSWORD_RESET",
+            req.user.id,
+            `Admin (${req.user.id}) reset password in-person for student ${formattedId} (${users[0].name})`,
+            'WARNING',
+            req
+        );
+
+        res.json({ success: true, message: `Password reset successfully for ${formattedId}.` });
+    } catch (err) {
+        console.error("RESET PASSWORD ERROR:", err);
+        res.status(500).json({ success: false, message: "Failed to reset password." });
+    }
+});
+
 // =========================
 // 8. NOTIFICATIONS
 // =========================
@@ -1167,8 +1220,8 @@ app.post('/api/fines/pay', authenticateToken, requireRole('admin', 'librarian'),
     }
 });
 
-// CLEAR fine (Admin only - forgiveness)
-app.post('/api/admin/clear-fine', authenticateToken, requireRole('admin'), async (req, res) => {
+// CLEAR fine (Admin + Librarian - forgiveness)
+app.post('/api/admin/clear-fine', authenticateToken, requireRole('admin', 'librarian'), async (req, res) => {
     const { student_id } = req.body;
     if (!student_id) {
         return res.status(400).json({ success: false, message: "student_id is required." });
@@ -1177,7 +1230,7 @@ app.post('/api/admin/clear-fine', authenticateToken, requireRole('admin'), async
         await db.query("UPDATE transactions SET fine_amount = 0, fine_paid = TRUE WHERE student_id = ? AND fine_amount > 0", [student_id]);
         await db.query("UPDATE transactions SET due_date = DATE_ADD(CURDATE(), INTERVAL 7 DAY) WHERE student_id = ? AND status = 'ISSUED'", [student_id]);
 
-        await logSystemAction("FINE_CLEARED", req.user.id, `Admin cleared all fines for student ${student_id}`, 'INFO', req);
+        await logSystemAction("FINE_CLEARED", req.user.id, `${req.user.role.toUpperCase()} (${req.user.id}) cleared all fines for student ${student_id}`, 'INFO', req);
         res.json({ success: true, message: `All fines cleared for student ${student_id}.` });
     } catch (err) {
         console.error("CLEAR FINE ERROR:", err);
