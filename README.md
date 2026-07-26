@@ -86,7 +86,7 @@ The system uses a normalized relational schema with 15+ tables:
 
 ---
 
-## ⚙️ Installation & Local Setup
+#⚙️ Installation & Local Setup
 
 ### Prerequisites
 - Node.js (v16+)
